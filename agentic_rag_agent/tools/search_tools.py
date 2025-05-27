@@ -4,6 +4,7 @@ Search Tools for Agentic RAG Agent
 
 import asyncio
 import logging
+import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 

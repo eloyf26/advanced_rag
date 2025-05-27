@@ -1,84 +1,265 @@
 """
-Database Manager for RAG Operations
+Enhanced Database Manager for RAG Operations with Comprehensive Error Handling
 """
 
 import asyncio
 import logging
+import os  # FIXED: Added missing import
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import numpy as np
+from contextlib import asynccontextmanager
+import time
 
 from supabase import create_client, Client
 import openai
 from sentence_transformers import CrossEncoder
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
 from config import RAGConfig
 from models.request_models import SearchFilters
 from models.response_models import DocumentChunk, SearchResults
+from utils.logger import get_logger
+from utils.metrics import get_metrics_collector
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
+
+
+class DatabaseConnectionError(Exception):
+    """Database connection related errors"""
+    pass
+
+
+class EmbeddingServiceError(Exception):
+    """Embedding service related errors"""
+    pass
+
+
+class SearchError(Exception):
+    """Search operation related errors"""
+    pass
 
 
 class RAGDatabaseManager:
     """
-    Manages all database operations for the RAG system
+    Enhanced database manager with comprehensive error handling and resilience
     """
     
     def __init__(self, config: RAGConfig):
         self.config = config
+        self.metrics = get_metrics_collector()
         
-        # Initialize clients
-        self.supabase: Client = create_client(config.supabase_url, config.supabase_key)
-        self.openai_client = openai.OpenAI()
+        # Initialize clients with error handling
+        self.supabase: Optional[Client] = None
+        self.openai_client: Optional[openai.AsyncOpenAI] = None
+        self.reranker: Optional[CrossEncoder] = None
         
-        # Initialize reranker if enabled
-        self.reranker = None
-        if config.enable_reranking:
-            try:
-                self.reranker = CrossEncoder(config.rerank_model)
-                logger.info(f"Loaded reranker: {config.rerank_model}")
-            except Exception as e:
-                logger.warning(f"Failed to load reranker: {e}")
-                self.config.enable_reranking = False
+        # Connection state
+        self._db_healthy = False
+        self._embedding_healthy = False
+        self._last_health_check = 0
+        self._health_check_interval = 300  # 5 minutes
         
-        # Connection pool and caching
+        # Caching
         self.embedding_cache = {}
         self.query_cache = {}
+        self._cache_lock = asyncio.Lock()
         
-        logger.info("RAG Database Manager initialized")
+        # Circuit breaker states
+        self._db_circuit_breaker = {
+            'failures': 0,
+            'last_failure': 0,
+            'state': 'closed'  # closed, open, half-open
+        }
+        
+        self._embedding_circuit_breaker = {
+            'failures': 0,
+            'last_failure': 0,
+            'state': 'closed'
+        }
+        
+        # Initialize services
+        asyncio.create_task(self._initialize_services())
+        
+        logger.info("RAG Database Manager initialized with enhanced error handling")
+    
+    async def _initialize_services(self):
+        """Initialize database and AI services with error handling"""
+        try:
+            # Initialize Supabase client
+            if not self.supabase:
+                self.supabase = create_client(
+                    self.config.supabase_url, 
+                    self.config.supabase_key
+                )
+                logger.info("Supabase client initialized")
+            
+            # Initialize OpenAI client
+            if not self.openai_client:
+                self.openai_client = openai.AsyncOpenAI()
+                logger.info("OpenAI client initialized")
+            
+            # Initialize reranker if enabled
+            if self.config.enable_reranking and not self.reranker:
+                try:
+                    self.reranker = CrossEncoder(self.config.rerank_model)
+                    logger.info(f"Loaded reranker: {self.config.rerank_model}")
+                except Exception as e:
+                    logger.warning(f"Failed to load reranker: {e}")
+                    self.config.enable_reranking = False
+            
+            # Test connections
+            await self._health_check()
+            
+        except Exception as e:
+            logger.error(f"Service initialization failed: {e}")
+            raise
+    
+    async def _health_check(self, force: bool = False) -> Dict[str, bool]:
+        """Comprehensive health check for all services"""
+        current_time = time.time()
+        
+        if not force and (current_time - self._last_health_check) < self._health_check_interval:
+            return {
+                'database': self._db_healthy,
+                'embedding': self._embedding_healthy
+            }
+        
+        health_status = {}
+        
+        # Test database connection
+        try:
+            if self.supabase:
+                result = self.supabase.table(self.config.table_name).select("count").limit(1).execute()
+                self._db_healthy = True
+                health_status['database'] = True
+                self._reset_circuit_breaker('db')
+                logger.debug("Database health check passed")
+            else:
+                self._db_healthy = False
+                health_status['database'] = False
+        except Exception as e:
+            self._db_healthy = False
+            health_status['database'] = False
+            self._record_circuit_breaker_failure('db')
+            logger.error(f"Database health check failed: {e}")
+        
+        # Test embedding service
+        try:
+            if self.openai_client:
+                # Test with a simple embedding request
+                response = await self.openai_client.embeddings.create(
+                    input="test",
+                    model=self.config.embedding_model
+                )
+                self._embedding_healthy = True
+                health_status['embedding'] = True
+                self._reset_circuit_breaker('embedding')
+                logger.debug("Embedding service health check passed")
+            else:
+                self._embedding_healthy = False
+                health_status['embedding'] = False
+        except Exception as e:
+            self._embedding_healthy = False
+            health_status['embedding'] = False
+            self._record_circuit_breaker_failure('embedding')
+            logger.error(f"Embedding service health check failed: {e}")
+        
+        self._last_health_check = current_time
+        return health_status
+    
+    def _record_circuit_breaker_failure(self, service: str):
+        """Record a circuit breaker failure"""
+        if service == 'db':
+            breaker = self._db_circuit_breaker
+        elif service == 'embedding':
+            breaker = self._embedding_circuit_breaker
+        else:
+            return
+        
+        breaker['failures'] += 1
+        breaker['last_failure'] = time.time()
+        
+        # Open circuit if too many failures
+        if breaker['failures'] >= 5:
+            breaker['state'] = 'open'
+            logger.warning(f"Circuit breaker opened for {service} service")
+    
+    def _reset_circuit_breaker(self, service: str):
+        """Reset circuit breaker on successful operation"""
+        if service == 'db':
+            breaker = self._db_circuit_breaker
+        elif service == 'embedding':
+            breaker = self._embedding_circuit_breaker
+        else:
+            return
+        
+        if breaker['state'] != 'closed':
+            logger.info(f"Circuit breaker closed for {service} service")
+        
+        breaker['failures'] = 0
+        breaker['state'] = 'closed'
+    
+    def _is_circuit_breaker_open(self, service: str) -> bool:
+        """Check if circuit breaker is open"""
+        if service == 'db':
+            breaker = self._db_circuit_breaker
+        elif service == 'embedding':
+            breaker = self._embedding_circuit_breaker
+        else:
+            return False
+        
+        if breaker['state'] == 'open':
+            # Try to half-open after 60 seconds
+            if time.time() - breaker['last_failure'] > 60:
+                breaker['state'] = 'half-open'
+                return False
+            return True
+        
+        return False
     
     async def test_connection(self) -> bool:
-        """
-        Test database connectivity
-        """
+        """Test database connectivity"""
         try:
-            result = self.supabase.table(self.config.table_name).select("count").limit(1).execute()
-            return True
+            health = await self._health_check(force=True)
+            return health.get('database', False)
         except Exception as e:
             logger.error(f"Database connection test failed: {e}")
             return False
     
     async def test_embedding_service(self) -> bool:
-        """
-        Test embedding service connectivity
-        """
+        """Test embedding service connectivity"""
         try:
-            await self.get_query_embedding("test")
-            return True
+            health = await self._health_check(force=True)
+            return health.get('embedding', False)
         except Exception as e:
             logger.error(f"Embedding service test failed: {e}")
             return False
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type(EmbeddingServiceError)
+    )
     async def get_query_embedding(self, query: str) -> List[float]:
         """
-        Generate embedding for the query with caching
+        Generate embedding for the query with caching and error handling
         """
+        if self._is_circuit_breaker_open('embedding'):
+            raise EmbeddingServiceError("Embedding service circuit breaker is open")
+        
         # Check cache first
-        if self.config.enable_embedding_cache and query in self.embedding_cache:
-            return self.embedding_cache[query]
+        if self.config.enable_embedding_cache:
+            async with self._cache_lock:
+                if query in self.embedding_cache:
+                    self.metrics.record_cache_event('embedding', 'hit')
+                    return self.embedding_cache[query]
         
         try:
-            response = self.openai_client.embeddings.create(
+            if not self.openai_client:
+                await self._initialize_services()
+            
+            response = await self.openai_client.embeddings.create(
                 input=query,
                 model=self.config.embedding_model
             )
@@ -86,25 +267,37 @@ class RAGDatabaseManager:
             
             # Cache the result
             if self.config.enable_embedding_cache:
-                # Simple LRU cache implementation
-                if len(self.embedding_cache) >= self.config.embedding_cache_size:
-                    # Remove oldest entry
-                    oldest_key = next(iter(self.embedding_cache))
-                    del self.embedding_cache[oldest_key]
-                
-                self.embedding_cache[query] = embedding
+                async with self._cache_lock:
+                    # Simple LRU cache implementation
+                    if len(self.embedding_cache) >= self.config.embedding_cache_size:
+                        # Remove oldest entry
+                        oldest_key = next(iter(self.embedding_cache))
+                        del self.embedding_cache[oldest_key]
+                    
+                    self.embedding_cache[query] = embedding
+                    self.metrics.record_cache_event('embedding', 'miss')
             
+            self._reset_circuit_breaker('embedding')
             return embedding
             
         except Exception as e:
+            self._record_circuit_breaker_failure('embedding')
             logger.error(f"Error generating embedding: {e}")
-            raise
+            raise EmbeddingServiceError(f"Failed to generate embedding: {str(e)}")
     
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type(DatabaseConnectionError)
+    )
     async def hybrid_search(self, query: str, filters: SearchFilters) -> List[DocumentChunk]:
         """
-        Perform hybrid search combining vector similarity and BM25
+        Perform hybrid search with comprehensive error handling
         """
-        start_time = datetime.now()
+        if self._is_circuit_breaker_open('db'):
+            raise DatabaseConnectionError("Database circuit breaker is open")
+        
+        start_time = time.time()
         
         try:
             # Generate query embedding
@@ -114,7 +307,10 @@ class RAGDatabaseManager:
             file_types_filter = filters.file_types if filters.file_types else None
             date_filter = filters.date_after if filters.date_after else None
             
-            # Call the hybrid search function
+            # Call the hybrid search function with error handling
+            if not self.supabase:
+                raise DatabaseConnectionError("Supabase client not initialized")
+            
             result = self.supabase.rpc(
                 'hybrid_search',
                 {
@@ -123,9 +319,15 @@ class RAGDatabaseManager:
                     'similarity_threshold': filters.similarity_threshold,
                     'limit_count': min(filters.max_results * 2, self.config.rerank_top_k),
                     'file_types': file_types_filter,
-                    'date_filter': date_filter.isoformat() if date_filter else None
+                    'date_filter': date_filter.isoformat() if date_filter else None,
+                    'vector_weight': self.config.vector_weight,
+                    'bm25_weight': self.config.bm25_weight
                 }
             ).execute()
+            
+            if not result.data:
+                logger.warning(f"No results found for query: {query[:100]}")
+                return []
             
             # Convert to DocumentChunk objects
             chunks = self._convert_db_results_to_chunks(result.data)
@@ -134,16 +336,52 @@ class RAGDatabaseManager:
             if self.config.enable_reranking and self.reranker and chunks:
                 chunks = await self._rerank_chunks(query, chunks)
             
-            # Return top results
+            # Record metrics
+            processing_time = time.time() - start_time
+            self.metrics.record_search(
+                method='hybrid',
+                duration=processing_time,
+                results_count=len(chunks),
+                status='success'
+            )
+            
+            self._reset_circuit_breaker('db')
             return chunks[:filters.max_results]
             
+        except EmbeddingServiceError:
+            # Re-raise embedding errors
+            raise
         except Exception as e:
+            self._record_circuit_breaker_failure('db')
+            processing_time = time.time() - start_time
+            self.metrics.record_search(
+                method='hybrid',
+                duration=processing_time,
+                results_count=0,
+                status='error'
+            )
             logger.error(f"Error in hybrid search: {e}")
+            
+            # Try fallback search if available
+            if self.config.enable_graceful_degradation:
+                return await self._fallback_search(query, filters)
+            
+            raise SearchError(f"Hybrid search failed: {str(e)}")
+    
+    async def _fallback_search(self, query: str, filters: SearchFilters) -> List[DocumentChunk]:
+        """
+        Fallback search using keyword-only search when vector search fails
+        """
+        try:
+            logger.info("Attempting fallback keyword search")
+            return await self.keyword_search(query, filters)
+        except Exception as e:
+            logger.error(f"Fallback search also failed: {e}")
             return []
     
     async def semantic_search(self, query: str, filters: SearchFilters) -> List[DocumentChunk]:
         """
-        Perform semantic search using vector similarity only
+        Perform semantic search with error handling
         """
         try:
             query_embedding = await self.get_query_embedding(query)
@@ -154,7 +392,8 @@ class RAGDatabaseManager:
                     'query_embedding': query_embedding,
                     'similarity_threshold': filters.similarity_threshold,
                     'limit_count': filters.max_results,
-                    'file_types': filters.file_types
+                    'file_types': filters.file_types,
+                    'date_filter': filters.date_after.isoformat() if filters.date_after else None
                 }
             ).execute()
             
@@ -162,19 +401,25 @@ class RAGDatabaseManager:
             
         except Exception as e:
             logger.error(f"Error in semantic search: {e}")
-            return []
+            if self.config.enable_graceful_degradation:
+                return await self._fallback_search(query, filters)
+            raise SearchError(f"Semantic search failed: {str(e)}")
     
     async def keyword_search(self, query: str, filters: SearchFilters) -> List[DocumentChunk]:
         """
-        Perform keyword search using BM25 only
+        Perform keyword search with error handling
         """
         try:
+            if not self.supabase:
+                raise DatabaseConnectionError("Supabase client not initialized")
+            
             result = self.supabase.rpc(
                 'keyword_search',
                 {
                     'query_text': query,
                     'limit_count': filters.max_results,
-                    'file_types': filters.file_types
+                    'file_types': filters.file_types,
+                    'date_filter': filters.date_after.isoformat() if filters.date_after else None
                 }
             ).execute()
             
@@ -182,7 +427,7 @@ class RAGDatabaseManager:
             
         except Exception as e:
             logger.error(f"Error in keyword search: {e}")
-            return []
+            raise SearchError(f"Keyword search failed: {str(e)}")
     
     async def get_document_context(
         self, 
@@ -191,9 +436,12 @@ class RAGDatabaseManager:
         context_window: int = 3
     ) -> List[DocumentChunk]:
         """
-        Get surrounding chunks for better context
+        Get surrounding chunks for better context with error handling
         """
         try:
+            if not self.supabase:
+                raise DatabaseConnectionError("Supabase client not initialized")
+            
             result = self.supabase.table(self.config.table_name).select("*").eq(
                 'document_id', document_id
             ).gte(
@@ -215,57 +463,17 @@ class RAGDatabaseManager:
         limit: int = 5
     ) -> List[DocumentChunk]:
         """
-        Find chunks similar to a given chunk
+        Find chunks similar to a given chunk with error handling
         """
         try:
-            # First get the target chunk
-            chunk_result = self.supabase.table(self.config.table_name).select(
-                "embedding, content"
-            ).eq('id', chunk_id).execute()
+            if not self.supabase:
+                raise DatabaseConnectionError("Supabase client not initialized")
             
-            if not chunk_result.data:
-                return []
-            
-            chunk_embedding = chunk_result.data[0]['embedding']
-            
-            # Find similar chunks
             result = self.supabase.rpc(
-                'semantic_search',
+                'find_similar_chunks',
                 {
-                    'query_embedding': chunk_embedding,
+                    'target_chunk_id': chunk_id,
                     'similarity_threshold': similarity_threshold,
-                    'limit_count': limit + 1  # +1 because original chunk will be included
-                }
-            ).execute()
-            
-            # Filter out the original chunk
-            similar_chunks = [
-                chunk for chunk in self._convert_db_results_to_chunks(result.data)
-                if chunk.id != chunk_id
-            ]
-            
-            return similar_chunks[:limit]
-            
-        except Exception as e:
-            logger.error(f"Error finding similar chunks: {e}")
-            return []
-    
-    async def get_chunks_by_keywords(
-        self, 
-        keywords: List[str], 
-        limit: int = 10
-    ) -> List[DocumentChunk]:
-        """
-        Get chunks that contain specific keywords
-        """
-        try:
-            # Create a query that matches any of the keywords
-            keyword_query = " OR ".join(keywords)
-            
-            result = self.supabase.rpc(
-                'keyword_search',
-                {
-                    'query_text': keyword_query,
                     'limit_count': limit
                 }
             ).execute()
@@ -273,14 +481,17 @@ class RAGDatabaseManager:
             return self._convert_db_results_to_chunks(result.data)
             
         except Exception as e:
-            logger.error(f"Error searching by keywords: {e}")
+            logger.error(f"Error finding similar chunks: {e}")
             return []
     
     async def get_database_stats(self) -> Dict[str, Any]:
         """
-        Get comprehensive database statistics
+        Get comprehensive database statistics with error handling
         """
         try:
+            if not self.supabase:
+                raise DatabaseConnectionError("Supabase client not initialized")
+            
             result = self.supabase.rpc('get_document_stats').execute()
             
             if result.data:
@@ -288,26 +499,38 @@ class RAGDatabaseManager:
                 return {
                     'total_documents': stats.get('total_documents', 0),
                     'total_chunks': stats.get('total_chunks', 0),
+                    'unique_files': stats.get('unique_files', 0),
                     'file_types': stats.get('file_types', []),
-                    'processing_dates': stats.get('processing_dates', []),
-                    'avg_chunk_size': stats.get('avg_chunk_size', 0)
+                    'avg_chunk_size': stats.get('avg_chunk_size', 0),
+                    'total_size_mb': stats.get('total_size_mb', 0),
+                    'oldest_document': stats.get('oldest_document'),
+                    'newest_document': stats.get('newest_document'),
+                    'vector_dimension': stats.get('vector_dimension', 0)
                 }
             else:
-                return {
-                    'total_documents': 0,
-                    'total_chunks': 0,
-                    'file_types': [],
-                    'processing_dates': [],
-                    'avg_chunk_size': 0
-                }
+                return self._get_empty_stats()
                 
         except Exception as e:
             logger.error(f"Error getting database stats: {e}")
-            return {}
+            return self._get_empty_stats()
+    
+    def _get_empty_stats(self) -> Dict[str, Any]:
+        """Return empty statistics when database is unavailable"""
+        return {
+            'total_documents': 0,
+            'total_chunks': 0,
+            'unique_files': 0,
+            'file_types': [],
+            'avg_chunk_size': 0,
+            'total_size_mb': 0,
+            'oldest_document': None,
+            'newest_document': None,
+            'vector_dimension': 0
+        }
     
     async def _rerank_chunks(self, query: str, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
         """
-        Rerank chunks using cross-encoder model
+        Rerank chunks using cross-encoder model with error handling
         """
         if not self.reranker or not chunks:
             return chunks
@@ -320,12 +543,21 @@ class RAGDatabaseManager:
                 doc_text = f"{chunk.title or ''} {chunk.content}".strip()
                 query_doc_pairs.append([query, doc_text])
             
-            # Get reranking scores
-            rerank_scores = self.reranker.predict(query_doc_pairs)
+            # Get reranking scores with timeout
+            rerank_scores = await asyncio.wait_for(
+                asyncio.to_thread(self.reranker.predict, query_doc_pairs),
+                timeout=30.0  # 30 second timeout
+            )
             
             # Update chunks with rerank scores
             for i, chunk in enumerate(chunks):
                 chunk.rerank_score = float(rerank_scores[i])
+                # Update combined score
+                chunk.combined_score = (
+                    0.6 * chunk.rerank_score +
+                    0.25 * chunk.similarity_score +
+                    0.15 * chunk.bm25_score
+                )
             
             # Sort by rerank score (descending)
             chunks.sort(key=lambda x: x.rerank_score, reverse=True)
@@ -333,13 +565,16 @@ class RAGDatabaseManager:
             logger.info(f"Reranked {len(chunks)} chunks")
             return chunks
             
+        except asyncio.TimeoutError:
+            logger.warning("Reranking timed out, returning original order")
+            return chunks
         except Exception as e:
             logger.error(f"Error in reranking: {e}")
             return chunks
     
     def _convert_db_results_to_chunks(self, db_results: List[Dict[str, Any]]) -> List[DocumentChunk]:
         """
-        Convert database results to DocumentChunk objects
+        Convert database results to DocumentChunk objects with error handling
         """
         chunks = []
         
@@ -348,12 +583,12 @@ class RAGDatabaseManager:
                 chunk = DocumentChunk(
                     id=row.get('id', ''),
                     content=row.get('content', ''),
-                    similarity_score=row.get('similarity_score', 0.0),
-                    bm25_score=row.get('bm25_score', 0.0),
-                    combined_score=row.get('combined_score', 0.0),
+                    similarity_score=float(row.get('similarity_score', 0.0)),
+                    bm25_score=float(row.get('bm25_score', 0.0)),
+                    combined_score=float(row.get('combined_score', 0.0)),
                     file_name=row.get('file_name', ''),
                     file_type=row.get('file_type', ''),
-                    chunk_index=row.get('chunk_index', 0),
+                    chunk_index=int(row.get('chunk_index', 0)),
                     title=row.get('title'),
                     summary=row.get('summary'),
                     keywords=row.get('keywords', []),
@@ -362,8 +597,11 @@ class RAGDatabaseManager:
                     chunk_context=self._create_chunk_context(row)
                 )
                 chunks.append(chunk)
-            except Exception as e:
+            except (ValueError, TypeError) as e:
                 logger.warning(f"Error converting database row to chunk: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"Unexpected error converting database row: {e}")
                 continue
         
         return chunks
@@ -372,124 +610,93 @@ class RAGDatabaseManager:
         """
         Create context information for a chunk
         """
-        context_parts = []
-        
-        if row.get('previous_chunk_preview'):
-            context_parts.append(f"Previous: {row['previous_chunk_preview']}")
-        
-        if row.get('next_chunk_preview'):
-            context_parts.append(f"Next: {row['next_chunk_preview']}")
-        
-        return " | ".join(context_parts) if context_parts else None
+        try:
+            context_parts = []
+            
+            if row.get('previous_chunk_preview'):
+                context_parts.append(f"Previous: {row['previous_chunk_preview']}")
+            
+            if row.get('next_chunk_preview'):
+                context_parts.append(f"Next: {row['next_chunk_preview']}")
+            
+            return " | ".join(context_parts) if context_parts else None
+        except Exception as e:
+            logger.debug(f"Error creating chunk context: {e}")
+            return None
     
     async def cleanup_old_cache(self):
         """
-        Clean up old cache entries
+        Clean up old cache entries with error handling
         """
         try:
-            # Simple cache cleanup - remove half the entries if cache is full
-            if len(self.embedding_cache) >= self.config.embedding_cache_size:
-                items_to_remove = len(self.embedding_cache) // 2
-                keys_to_remove = list(self.embedding_cache.keys())[:items_to_remove]
+            async with self._cache_lock:
+                # Simple cache cleanup - remove half the entries if cache is full
+                if len(self.embedding_cache) >= self.config.embedding_cache_size:
+                    items_to_remove = len(self.embedding_cache) // 2
+                    keys_to_remove = list(self.embedding_cache.keys())[:items_to_remove]
+                    
+                    for key in keys_to_remove:
+                        del self.embedding_cache[key]
+                    
+                    logger.info(f"Cleaned up {items_to_remove} embedding cache entries")
                 
-                for key in keys_to_remove:
-                    del self.embedding_cache[key]
-                
-                logger.info(f"Cleaned up {items_to_remove} cache entries")
-                
+                # Clean up query cache if it exists
+                if hasattr(self, 'query_cache') and len(self.query_cache) > 1000:
+                    items_to_remove = len(self.query_cache) // 2
+                    keys_to_remove = list(self.query_cache.keys())[:items_to_remove]
+                    
+                    for key in keys_to_remove:
+                        del self.query_cache[key]
+                    
+                    logger.info(f"Cleaned up {items_to_remove} query cache entries")
+                    
         except Exception as e:
             logger.error(f"Error cleaning up cache: {e}")
-    
-    async def batch_search(
-        self, 
-        queries: List[str], 
-        search_method: str = "hybrid"
-    ) -> List[SearchResults]:
-        """
-        Perform batch search for multiple queries
-        """
-        results = []
-        
-        # Process queries concurrently with semaphore to limit concurrency
-        semaphore = asyncio.Semaphore(self.config.max_concurrent_searches)
-        
-        async def search_single_query(query: str) -> SearchResults:
-            async with semaphore:
-                filters = SearchFilters(max_results=self.config.default_max_results)
-                
-                try:
-                    start_time = datetime.now()
-                    
-                    if search_method == "hybrid":
-                        chunks = await self.hybrid_search(query, filters)
-                    elif search_method == "semantic":
-                        chunks = await self.semantic_search(query, filters)
-                    elif search_method == "keyword":
-                        chunks = await self.keyword_search(query, filters)
-                    else:
-                        chunks = await self.hybrid_search(query, filters)
-                    
-                    search_time = (datetime.now() - start_time).total_seconds() * 1000
-                    
-                    return SearchResults(
-                        query=query,
-                        chunks=chunks,
-                        total_found=len(chunks),
-                        search_time_ms=search_time,
-                        search_method=search_method,
-                        filters_applied=filters.dict()
-                    )
-                    
-                except Exception as e:
-                    logger.error(f"Error in batch search for query '{query}': {e}")
-                    return SearchResults(
-                        query=query,
-                        chunks=[],
-                        total_found=0,
-                        search_time_ms=0,
-                        search_method=search_method,
-                        filters_applied=filters.dict()
-                    )
-        
-        # Execute all searches concurrently
-        tasks = [search_single_query(query) for query in queries]
-        results = await asyncio.gather(*tasks)
-        
-        return results
-    
-    async def update_search_statistics(self, search_stats: Dict[str, Any]):
-        """
-        Update BM25 and other search statistics
-        """
-        try:
-            # Call the update function
-            self.supabase.rpc('update_bm25_stats').execute()
-            logger.info("Search statistics updated")
-        except Exception as e:
-            logger.error(f"Error updating search statistics: {e}")
-    
-    async def get_search_performance_metrics(self) -> Dict[str, Any]:
-        """
-        Get search performance metrics
-        """
-        try:
-            # This would query actual performance metrics from the database
-            # For now, return placeholder metrics
-            return {
-                'avg_search_time_ms': 0.0,
-                'cache_hit_rate': 0.0,
-                'total_searches': 0,
-                'successful_searches': 0,
-                'failed_searches': 0
-            }
-        except Exception as e:
-            logger.error(f"Error getting performance metrics: {e}")
-            return {}
     
     def clear_all_caches(self):
         """
         Clear all caches
         """
-        self.embedding_cache.clear()
-        self.query_cache.clear()
-        logger.info("All caches cleared")
+        try:
+            self.embedding_cache.clear()
+            self.query_cache.clear()
+            logger.info("All caches cleared")
+        except Exception as e:
+            logger.error(f"Error clearing caches: {e}")
+    
+    async def get_health_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive health status
+        """
+        try:
+            health = await self._health_check(force=True)
+            
+            return {
+                'database_connected': health.get('database', False),
+                'embedding_service_healthy': health.get('embedding', False),
+                'cache_size': len(self.embedding_cache),
+                'db_circuit_breaker': self._db_circuit_breaker['state'],
+                'embedding_circuit_breaker': self._embedding_circuit_breaker['state'],
+                'last_health_check': datetime.fromtimestamp(self._last_health_check).isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Error getting health status: {e}")
+            return {
+                'database_connected': False,
+                'embedding_service_healthy': False,
+                'error': str(e)
+            }
+    
+    async def __aenter__(self):
+        """Async context manager entry"""
+        await self._initialize_services()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit"""
+        try:
+            # Cleanup resources
+            if hasattr(self.openai_client, 'close'):
+                await self.openai_client.close()
+        except Exception as e:
+            logger.error(f"Error during cleanup: {e}")

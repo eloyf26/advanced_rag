@@ -1,0 +1,176 @@
+version: '3.8'
+
+services:
+  # Main RAG Agent Service
+  rag-agent:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: agentic-rag-agent
+    ports:
+      - "8001:8001"
+    environment:
+      # Database Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - TABLE_NAME=${TABLE_NAME:-rag_documents}
+      
+      # AI/ML Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-large}
+      - RERANK_MODEL=${RERANK_MODEL:-cross-encoder/ms-marco-MiniLM-L-6-v2}
+      
+      # Search Configuration
+      - SIMILARITY_THRESHOLD=${SIMILARITY_THRESHOLD:-0.7}
+      - MAX_RESULTS=${MAX_RESULTS:-10}
+      - ENABLE_RERANKING=${ENABLE_RERANKING:-true}
+      - VECTOR_WEIGHT=${VECTOR_WEIGHT:-0.7}
+      - BM25_WEIGHT=${BM25_WEIGHT:-0.3}
+      
+      # Agentic Features
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-3}
+      - MIN_SOURCES_PER_ITERATION=${MIN_SOURCES_PER_ITERATION:-3}
+      - ENABLE_QUERY_PLANNING=${ENABLE_QUERY_PLANNING:-true}
+      - ENABLE_SOURCE_TRIANGULATION=${ENABLE_SOURCE_TRIANGULATION:-true}
+      - ENABLE_SELF_REFLECTION=${ENABLE_SELF_REFLECTION:-true}
+      
+      # Performance
+      - MAX_CONCURRENT_SEARCHES=${MAX_CONCURRENT_SEARCHES:-3}
+      - EMBEDDING_BATCH_SIZE=${EMBEDDING_BATCH_SIZE:-100}
+      - ENABLE_EMBEDDING_CACHE=${ENABLE_EMBEDDING_CACHE:-true}
+      - EMBEDDING_CACHE_SIZE=${EMBEDDING_CACHE_SIZE:-10000}
+      
+      # Redis Configuration
+      - REDIS_URL=redis://redis:6379
+      - ENABLE_QUERY_CACHE=${ENABLE_QUERY_CACHE:-true}
+      - CACHE_TTL_MINUTES=${CACHE_TTL_MINUTES:-60}
+      
+      # Security
+      - ENABLE_AUTHENTICATION=${ENABLE_AUTHENTICATION:-false}
+      - ENABLE_RATE_LIMITING=${ENABLE_RATE_LIMITING:-true}
+      - MAX_REQUESTS_PER_MINUTE=${MAX_REQUESTS_PER_MINUTE:-60}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DEBUG_MODE=${DEBUG_MODE:-false}
+    
+    volumes:
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+      - ./data:/app/data
+    
+    depends_on:
+      redis:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    networks:
+      - rag-network
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: rag-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    networks:
+      - rag-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Optional: Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: rag-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - rag-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: rag-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    restart: unless-stopped
+    networks:
+      - rag-network
+    profiles:
+      - monitoring
+
+  # Optional: Nginx reverse proxy
+  nginx:
+    image: nginx:alpine
+    container_name: rag-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - rag-agent
+    restart: unless-stopped
+    networks:
+      - rag-network
+    profiles:
+      - production
+
+volumes:
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  rag-network:
+    driver: bridge
