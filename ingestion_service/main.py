@@ -1,5 +1,5 @@
 """
-Fixed Main entry point for the LlamaIndex Ingestion Service
+Main entry point for the LlamaIndex Ingestion Service
 """
 
 import os
@@ -8,6 +8,8 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
+from datetime import datetime
+import json
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,7 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import uvicorn
 
-from config import get_config, IngestionConfig
+from config import get_config, IngestionConfig, validate_environment
 from processors.ingestion_service import SupabaseRAGIngestionService
 
 # Configure logging
@@ -120,6 +122,15 @@ async def lifespan(app: FastAPI):
     try:
         # Startup
         logger.info("Starting Ingestion Service...")
+        
+        # Validate environment first
+        env_issues = validate_environment()
+        if env_issues:
+            logger.error("Environment validation failed:")
+            for issue in env_issues:
+                logger.error(f"  - {issue}")
+            raise ValueError("Invalid environment configuration. Check logs for details.")
+        
         config = get_config()
         
         # Validate configuration
@@ -132,10 +143,13 @@ async def lifespan(app: FastAPI):
         
         # Test database connection
         try:
-            stats = ingestion_service.get_ingestion_stats()
-            logger.info(f"Database connection verified. Stats: {stats}")
+            connected = await ingestion_service.test_connection()
+            if connected:
+                logger.info("Database connection verified")
+            else:
+                logger.warning("Database connection test failed")
         except Exception as e:
-            logger.warning(f"Database connection test failed: {e}")
+            logger.warning(f"Database connection test error: {e}")
         
         yield
         
@@ -146,8 +160,7 @@ async def lifespan(app: FastAPI):
         # Shutdown
         logger.info("Shutting down ingestion service")
         if ingestion_service:
-            # Cleanup resources if needed
-            pass
+            await ingestion_service.cleanup_resources()
 
 # Create FastAPI app with lifespan
 app = FastAPI(
@@ -190,7 +203,7 @@ async def health_check(service: SupabaseRAGIngestionService = Depends(get_servic
             service="ingestion",
             database="connected",
             stats=stats,
-            timestamp=str(asyncio.get_event_loop().time())
+            timestamp=datetime.utcnow().isoformat()
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")
@@ -231,7 +244,7 @@ async def ingest_files(
             "total_chunks": 0,
             "processing_time": 0.0,
             "error": None,
-            "created_at": asyncio.get_event_loop().time()
+            "created_at": datetime.utcnow().isoformat()
         }
         
         # Start background processing
@@ -283,7 +296,7 @@ async def ingest_directory(
             "total_chunks": 0,
             "processing_time": 0.0,
             "error": None,
-            "created_at": asyncio.get_event_loop().time()
+            "created_at": datetime.utcnow().isoformat()
         }
         
         # Start background processing
@@ -361,7 +374,7 @@ async def upload_and_ingest(
             "total_chunks": 0,
             "processing_time": 0.0,
             "error": None,
-            "created_at": asyncio.get_event_loop().time(),
+            "created_at": datetime.utcnow().isoformat(),
             "uploaded_files": [f.filename for f in files if f.filename]
         }
         
@@ -407,7 +420,7 @@ async def list_tasks():
             {
                 "task_id": task_id, 
                 "status": info["status"],
-                "created_at": info.get("created_at", 0),
+                "created_at": info.get("created_at", ""),
                 "processing_time": info.get("processing_time", 0.0)
             }
             for task_id, info in task_storage.items()
@@ -445,6 +458,7 @@ async def get_service_stats(service: SupabaseRAGIngestionService = Depends(get_s
         # Service information
         service_info = {
             "supported_file_types": service.file_processor.get_supported_types(),
+            "processor_info": service.get_processor_info(),
             "configuration": {
                 "chunk_size": service.config.chunk_size,
                 "chunk_overlap": service.config.chunk_overlap,
@@ -468,20 +482,7 @@ async def get_service_stats(service: SupabaseRAGIngestionService = Depends(get_s
 async def get_configuration():
     """Get current service configuration"""
     config = get_config()
-    return {
-        "chunk_size": config.chunk_size,
-        "chunk_overlap": config.chunk_overlap,
-        "enable_semantic_chunking": config.enable_semantic_chunking,
-        "enable_hierarchical_chunking": config.enable_hierarchical_chunking,
-        "extract_metadata": config.extract_metadata,
-        "enable_ocr": config.enable_ocr,
-        "enable_speech_to_text": config.enable_speech_to_text,
-        "max_file_size_mb": config.max_file_size_mb,
-        "embedding_model": config.embedding_model,
-        "llm_model": config.llm_model,
-        "max_concurrent_files": config.max_concurrent_files,
-        "batch_size": config.batch_size
-    }
+    return config.get_summary()
 
 # Background task functions
 async def process_files_background(
@@ -491,13 +492,15 @@ async def process_files_background(
     service: SupabaseRAGIngestionService
 ):
     """Background task for processing files"""
-    start_time = asyncio.get_event_loop().time()
+    import time
+    start_time = time.time()
     
     try:
         # Update status
         task_storage[task_id]["status"] = "processing"
         
         # Override batch size if provided
+        original_batch_size = None
         if batch_size and batch_size > 0:
             original_batch_size = service.config.batch_size
             service.config.batch_size = batch_size
@@ -506,7 +509,7 @@ async def process_files_background(
         results = await service.ingest_files(file_paths)
         
         # Calculate processing time
-        processing_time = asyncio.get_event_loop().time() - start_time
+        processing_time = time.time() - start_time
         
         # Update task status with results
         task_storage[task_id].update({
@@ -521,11 +524,11 @@ async def process_files_background(
         logger.info(f"Task {task_id} completed successfully in {processing_time:.2f}s")
         
         # Restore original batch size if changed
-        if batch_size and batch_size > 0:
+        if original_batch_size is not None:
             service.config.batch_size = original_batch_size
         
     except Exception as e:
-        processing_time = asyncio.get_event_loop().time() - start_time
+        processing_time = time.time() - start_time
         logger.error(f"Task {task_id} failed after {processing_time:.2f}s: {str(e)}")
         task_storage[task_id].update({
             "status": "failed",
@@ -541,7 +544,8 @@ async def process_directory_background(
     service: SupabaseRAGIngestionService
 ):
     """Background task for processing directory"""
-    start_time = asyncio.get_event_loop().time()
+    import time
+    start_time = time.time()
     
     try:
         # Update status
@@ -555,7 +559,7 @@ async def process_directory_background(
         )
         
         # Calculate processing time
-        processing_time = asyncio.get_event_loop().time() - start_time
+        processing_time = time.time() - start_time
         
         # Update task status with results
         task_storage[task_id].update({
@@ -570,7 +574,7 @@ async def process_directory_background(
         logger.info(f"Task {task_id} completed successfully in {processing_time:.2f}s")
         
     except Exception as e:
-        processing_time = asyncio.get_event_loop().time() - start_time
+        processing_time = time.time() - start_time
         logger.error(f"Task {task_id} failed after {processing_time:.2f}s: {str(e)}")
         task_storage[task_id].update({
             "status": "failed",
@@ -586,7 +590,7 @@ async def http_exception_handler(request, exc):
         content={
             "error": exc.detail,
             "status_code": exc.status_code,
-            "timestamp": str(asyncio.get_event_loop().time())
+            "timestamp": datetime.utcnow().isoformat()
         }
     )
 
@@ -598,7 +602,7 @@ async def general_exception_handler(request, exc):
         content={
             "error": "Internal server error",
             "status_code": 500,
-            "timestamp": str(asyncio.get_event_loop().time())
+            "timestamp": datetime.utcnow().isoformat()
         }
     )
 

@@ -2,7 +2,6 @@
 Context-Aware Chunker Implementation
 File: ingestion_service/processors/context_aware_chunker.py
 """
-
 import re
 import logging
 from typing import List, Dict, Any, Optional
