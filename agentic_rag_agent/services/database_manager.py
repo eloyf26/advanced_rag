@@ -21,6 +21,8 @@ from models.request_models import SearchFilters
 from models.response_models import DocumentChunk, SearchResults
 from utils.logger import get_logger
 from utils.metrics import get_metrics_collector
+from services.embedding_service import get_embedding_service
+from services.reranking_service import get_reranking_service
 
 logger = get_logger(__name__)
 
@@ -78,6 +80,10 @@ class RAGDatabaseManager:
             'state': 'closed'
         }
         
+        # Initialize embedding and reranking services
+        self.embedding_service = get_embedding_service(config)
+        self.reranking_service = get_reranking_service(config)
+        
         # Initialize services
         asyncio.create_task(self._initialize_services())
         
@@ -94,19 +100,12 @@ class RAGDatabaseManager:
                 )
                 logger.info("Supabase client initialized")
             
-            # Initialize OpenAI client
-            if not self.openai_client:
-                self.openai_client = openai.AsyncOpenAI()
-                logger.info("OpenAI client initialized")
+            # Start embedding service background tasks
+            await self.embedding_service.start()
+            logger.info("Embedding service started")
             
-            # Initialize reranker if enabled
-            if self.config.enable_reranking and not self.reranker:
-                try:
-                    self.reranker = CrossEncoder(self.config.rerank_model)
-                    logger.info(f"Loaded reranker: {self.config.rerank_model}")
-                except Exception as e:
-                    logger.warning(f"Failed to load reranker: {e}")
-                    self.config.enable_reranking = False
+            # Reranking service is already initialized via get_reranking_service
+            logger.info("Reranking service ready")
             
             # Test connections
             await self._health_check()
@@ -248,42 +247,19 @@ class RAGDatabaseManager:
         if self._is_circuit_breaker_open('embedding'):
             raise EmbeddingServiceError("Embedding service circuit breaker is open")
         
-        # Check cache first
-        if self.config.enable_embedding_cache:
-            async with self._cache_lock:
-                if query in self.embedding_cache:
-                    self.metrics.record_cache_event('embedding', 'hit')
-                    return self.embedding_cache[query]
-        
+        # Delegate embedding generation to the embedding service
         try:
-            if not self.openai_client:
-                await self._initialize_services()
-            
-            response = await self.openai_client.embeddings.create(
-                input=query,
-                model=self.config.embedding_model
+            embedding = await self.embedding_service.get_embeddings(
+                query,
+                model=self.config.embedding_model,
+                use_cache=self.config.enable_embedding_cache
             )
-            embedding = response.data[0].embedding
-            
-            # Cache the result
-            if self.config.enable_embedding_cache:
-                async with self._cache_lock:
-                    # Simple LRU cache implementation
-                    if len(self.embedding_cache) >= self.config.embedding_cache_size:
-                        # Remove oldest entry
-                        oldest_key = next(iter(self.embedding_cache))
-                        del self.embedding_cache[oldest_key]
-                    
-                    self.embedding_cache[query] = embedding
-                    self.metrics.record_cache_event('embedding', 'miss')
-            
             self._reset_circuit_breaker('embedding')
             return embedding
-            
         except Exception as e:
             self._record_circuit_breaker_failure('embedding')
-            logger.error(f"Error generating embedding: {e}")
-            raise EmbeddingServiceError(f"Failed to generate embedding: {str(e)}")
+            logger.error(f"Error generating embedding via embedding_service: {e}")
+            raise EmbeddingServiceError(f"Failed to generate embedding: {e}")
     
     @retry(
         stop=stop_after_attempt(3),
@@ -332,9 +308,14 @@ class RAGDatabaseManager:
             # Convert to DocumentChunk objects
             chunks = self._convert_db_results_to_chunks(result.data)
             
-            # Apply reranking if enabled
-            if self.config.enable_reranking and self.reranker and chunks:
-                chunks = await self._rerank_chunks(query, chunks)
+            # Apply reranking if enabled via the reranking service
+            if self.config.enable_reranking and self.reranking_service and chunks:
+                rerank_resp = await self.reranking_service.rerank_documents(
+                    query=query,
+                    documents=chunks,
+                    top_k=self.config.rerank_top_k
+                )
+                chunks = rerank_resp.reranked_documents
             
             # Record metrics
             processing_time = time.time() - start_time

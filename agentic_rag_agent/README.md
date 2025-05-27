@@ -352,19 +352,6 @@ def _assess_custom_quality(self, answer: str, sources: List[DocumentChunk]) -> f
     pass
 ```
 
-### Testing
-
-```bash
-# Run tests
-pytest tests/
-
-# Run with coverage
-pytest --cov=agentic_rag_agent tests/
-
-# Run specific test category
-pytest tests/test_agents.py -v
-```
-
 ### Debugging
 
 #### Enable Debug Mode
