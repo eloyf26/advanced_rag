@@ -1,0 +1,5 @@
+.env
+.venv
+/vector_database/scripts/.env
+/ingestion_service/.env
+/agentic_rag_service/.env
