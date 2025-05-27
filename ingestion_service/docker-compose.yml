@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  ingestion-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: llamaindex-ingestion-service
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      # Required Configuration
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      
+      # Service Configuration
+      - HOST=0.0.0.0
+      - PORT=8000
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Processing Configuration
+      - CHUNK_SIZE=${CHUNK_SIZE:-1024}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-200}
+      - MAX_FILE_SIZE_MB=${MAX_FILE_SIZE_MB:-100}
+      - BATCH_SIZE=${BATCH_SIZE:-100}
+      - MAX_CONCURRENT_FILES=${MAX_CONCURRENT_FILES:-5}
+      
+      # Feature Toggles
+      - ENABLE_SEMANTIC_CHUNKING=${ENABLE_SEMANTIC_CHUNKING:-true}
+      - ENABLE_HIERARCHICAL_CHUNKING=${ENABLE_HIERARCHICAL_CHUNKING:-true}
+      - EXTRACT_METADATA=${EXTRACT_METADATA:-true}
+      - ENABLE_OCR=${ENABLE_OCR:-true}
+      - ENABLE_SPEECH_TO_TEXT=${ENABLE_SPEECH_TO_TEXT:-true}
+      
+      # Model Configuration
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-text-embedding-3-large}
+      - LLM_MODEL=${LLM_MODEL:-gpt-4-turbo}
+      
+      # Database Configuration
+      - TABLE_NAME=${TABLE_NAME:-rag_documents}
+      
+      # Cache Configuration
+      - CACHE_DIR=/app/ingestion_cache
+      - ENABLE_CACHE=${ENABLE_CACHE:-true}
+    
+    volumes:
+      # Persistent storage for uploads and cache
+      - ingestion_uploads:/app/uploads
+      - ingestion_cache:/app/ingestion_cache
+      - ingestion_logs:/app/logs
+      
+      # Optional: Mount host directories for file processing
+      # - ${HOST_DOCUMENTS_PATH:-./documents}:/app/documents:ro
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    restart: unless-stopped
+    
+    # Resource limits (adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Network configuration
+    networks:
+      - ingestion-network
+
+  # Optional: Redis for task queue (production use)
+  redis:
+    image: redis:7-alpine
+    container_name: ingestion-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ingestion-network
+    profiles:
+      - redis
+
+  # Optional: Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ingestion-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    networks:
+      - ingestion-network
+    profiles:
+      - monitoring
+
+  # Optional: Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ingestion-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - ingestion-network
+    profiles:
+      - monitoring
+
+volumes:
+  ingestion_uploads:
+    driver: local
+  ingestion_cache:
+    driver: local
+  ingestion_logs:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  ingestion-network:
+    driver: bridge

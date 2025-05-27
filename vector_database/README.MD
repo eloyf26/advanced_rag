@@ -2,40 +2,43 @@
 
 ## Overview
 
-The Supabase Vector Database service provides a comprehensive PostgreSQL-based vector storage solution optimized for RAG (Retrieval-Augmented Generation) applications. It combines the power of pgvector for semantic search with traditional full-text search capabilities, offering hybrid retrieval mechanisms with advanced query functions and performance optimizations.
+The Supabase Vector Database service provides a **complete, standalone** PostgreSQL-based vector storage solution optimized for RAG (Retrieval-Augmented Generation) applications. It combines the power of pgvector for semantic search with traditional full-text search capabilities, offering hybrid retrieval mechanisms with advanced query functions and performance optimizations.
+
+This database can operate **independently** and serve multiple applications, not just the ingestion service. It provides a complete API through SQL functions and direct database access.
 
 ## 🎯 Goals
 
 - **Hybrid Search Capabilities**: Combine vector similarity and BM25 keyword search for optimal retrieval
-- **High Performance**: Optimized indexes and query functions for fast similarity search
+- **High Performance**: Optimized indexes and query functions for fast similarity search at scale
 - **Scalable Architecture**: Support for millions of document chunks with efficient storage
 - **Production Ready**: Row-level security, automated cleanup, and comprehensive monitoring
 - **Advanced Features**: Semantic search, keyword search, triangulation, and statistical analysis
+- **Independent Operation**: Complete standalone database that can serve multiple applications
 
 ## 🏗️ Database Architecture
 
-### Schema Structure
+### Complete File Structure
 
 ```
 📁 vector_database/
-├── 📄 setup.sql                        # Main database setup
-├── 📄 migrations/
-│   ├── 📄 001_initial_schema.sql       # Initial table creation
-│   ├── 📄 002_indexes.sql              # Performance indexes
-│   ├── 📄 003_functions.sql            # Search functions
-│   └── 📄 004_security.sql             # RLS and permissions
+├── 📄 setup.sql                       # Complete database schema
+├── 📄 functions.sql                   # Advanced search functions
+├── 📄 security.sql                    # Security policies (optional)
 ├── 📄 scripts/
-│   ├── 📄 deploy.sh                    # Deployment script
-│   ├── 📄 backup.sh                    # Backup utilities
-│   └── 📄 monitoring.sql               # Performance monitoring
-└── 📄 docs/
-    ├── 📄 schema_reference.md           # Schema documentation
-    └── 📄 query_examples.md             # Usage examples
+│   ├── 📄 deploy.sh                   # Enhanced deployment script
+│   ├── 📄 backup.sh                   # Backup utilities
+│   ├── 📄 monitor.sh                  # Monitoring scripts
+│   └── 📄 cleanup.sh                  # Maintenance utilities
+├── 📄 migrations/
+│   ├── 📄 001_initial_schema.sql      # Initial table creation
+│   ├── 📄 002_indexes.sql             # Performance indexes
+│   └── 📄 003_functions.sql           # Search functions
+└── 📄 README.md                       # This documentation
 ```
 
-### Core Tables
+### Core Schema Design
 
-#### 1. `rag_documents` (Main Storage)
+#### Main Storage Table: `rag_documents`
 
 ```sql
 CREATE TABLE rag_documents (
@@ -43,7 +46,7 @@ CREATE TABLE rag_documents (
     
     -- Content and embedding
     content TEXT NOT NULL,
-    embedding VECTOR(3072),
+    embedding VECTOR(3072), -- text-embedding-3-large dimension
     
     -- Document metadata
     document_id UUID,
@@ -51,15 +54,39 @@ CREATE TABLE rag_documents (
     file_path TEXT,
     file_name TEXT,
     file_type TEXT,
+    file_size BIGINT,
+    file_modified TIMESTAMPTZ,
     
-    -- Enhanced metadata for search
+    -- Chunk metadata
+    chunk_index INTEGER,
+    total_chunks INTEGER,
+    parent_node_id TEXT,
+    chunk_type TEXT,
+    word_count INTEGER,
+    char_count INTEGER,
+    
+    -- Processing metadata
+    processed_at TIMESTAMPTZ DEFAULT NOW(),
+    extraction_method TEXT,
+    
+    -- Enhanced metadata for hybrid search
     title TEXT,
     summary TEXT,
     keywords TEXT[],
     entities TEXT[],
+    questions_answered TEXT[],
     
-    -- Full-text search vector
-    search_vector TSVECTOR GENERATED ALWAYS AS (...) STORED,
+    -- Contextual metadata
+    previous_chunk_preview TEXT,
+    next_chunk_preview TEXT,
+    
+    -- Search optimization
+    content_hash BIGINT,
+    search_vector TSVECTOR GENERATED ALWAYS AS (
+        to_tsvector('english', content || ' ' || 
+        COALESCE(title, '') || ' ' || 
+        COALESCE(summary, ''))
+    ) STORED,
     
     -- Timestamps
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -67,7 +94,7 @@ CREATE TABLE rag_documents (
 );
 ```
 
-#### 2. `bm25_stats` (Search Statistics)
+#### Statistics Table: `bm25_stats`
 
 ```sql
 CREATE TABLE bm25_stats (
@@ -80,132 +107,123 @@ CREATE TABLE bm25_stats (
 );
 ```
 
-## 🔧 Key Features
+## 🚀 Independent Deployment
 
-### 1. Vector Similarity Search
+### Prerequisites
 
-**HNSW Index for Fast Approximate Search:**
-```sql
-CREATE INDEX rag_documents_embedding_idx 
-ON rag_documents USING hnsw (embedding vector_cosine_ops)
-WITH (m = 16, ef_construction = 64);
+- Supabase account (free tier available)
+- PostgreSQL 14+ with pgvector extension
+- `psql` client tools
+- Basic understanding of SQL and PostgreSQL
+
+### Quick Setup (Standalone)
+
+1. **Supabase Project Setup**
+```bash
+# Create a new Supabase project at https://supabase.com
+# Note your project URL and service key
 ```
 
-**Performance Characteristics:**
-- **Query Time**: < 10ms for similarity search on 1M+ documents
-- **Accuracy**: 95%+ recall for top-k results
-- **Memory Usage**: ~4GB for 1M documents with 3072-dimensional vectors
-
-### 2. Full-Text Search Integration
-
-**GIN Index for Text Search:**
+2. **Enable pgvector Extension**
 ```sql
-CREATE INDEX rag_documents_search_vector_idx 
-ON rag_documents USING gin(search_vector);
+-- In Supabase SQL Editor or via psql
+CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-**Features:**
-- Multi-language support with PostgreSQL text search
-- Stemming and stop-word filtering
-- Phrase and proximity queries
-- Ranking with tf-idf scoring
+3. **Clone and Setup**
+```bash
+git clone <repository-url>
+cd vector_database/
 
-### 3. Hybrid Search Functions
+# Set environment variables
+export SUPABASE_URL="https://your-project.supabase.co"
+export SUPABASE_SERVICE_KEY="your_service_key_here"
+```
 
-**Combined Vector + Keyword Search:**
+4. **Deploy Database Schema**
+```bash
+# Make deployment script executable
+chmod +x scripts/deploy.sh
+
+# Run deployment with verification
+./scripts/deploy.sh
+
+# Or with options
+./scripts/deploy.sh --verbose --skip-tests
+```
+
+5. **Verify Installation**
+```bash
+# Test connection
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.$(echo $SUPABASE_URL | sed 's|https://||' | sed 's|\.supabase\.co.*|.supabase.co|')" \
+  -U postgres \
+  -d postgres \
+  -c "SELECT * FROM get_document_stats();"
+```
+
+### Advanced Deployment Options
+
+#### 1. Dry Run Deployment
+```bash
+# See what would be deployed without making changes
+./scripts/deploy.sh --dry-run
+```
+
+#### 2. Verbose Deployment
+```bash
+# Get detailed deployment information
+./scripts/deploy.sh --verbose
+```
+
+#### 3. Skip Connection Tests
+```bash
+# Deploy without preliminary tests (for CI/CD)
+./scripts/deploy.sh --skip-tests
+```
+
+#### 4. Manual Deployment
+```bash
+# Execute SQL files manually
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.your-host.supabase.co" \
+  -U postgres \
+  -d postgres \
+  -f setup.sql
+
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.your-host.supabase.co" \
+  -U postgres \
+  -d postgres \
+  -f functions.sql
+```
+
+## 📊 Advanced Search Functions
+
+The database provides sophisticated search capabilities through custom SQL functions:
+
+### 1. Hybrid Search (Recommended)
+
+Combines vector similarity with BM25 keyword scoring:
+
 ```sql
 SELECT * FROM hybrid_search(
     query_embedding => '[0.1, 0.2, ...]'::vector(3072),
     query_text => 'machine learning algorithms',
     similarity_threshold => 0.7,
-    limit_count => 10
-);
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Supabase account with PostgreSQL 14+
-- pgvector extension enabled
-- Sufficient database resources (recommend 2GB+ RAM)
-
-### Installation Steps
-
-#### 1. Enable pgvector Extension
-
-```sql
--- Connect to your Supabase database
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-#### 2. Deploy Schema
-
-```bash
-# Clone the database setup
-git clone <repository-url>
-cd vector_database/
-
-# Set environment variables
-export SUPABASE_URL="your_supabase_url"
-export SUPABASE_SERVICE_KEY="your_service_key"
-
-# Run deployment script
-./scripts/deploy.sh
-```
-
-#### 3. Verify Installation
-
-```sql
--- Check tables
-\dt
-
--- Verify vector extension
-SELECT * FROM pg_extension WHERE extname = 'vector';
-
--- Test basic functionality
-SELECT * FROM get_document_stats();
-```
-
-### Manual Setup
-
-If you prefer manual setup, execute the SQL files in order:
-
-```bash
-# Execute setup script
-psql -h your_host -U postgres -d postgres -f setup.sql
-```
-
-## 📊 Search Functions
-
-### 1. Hybrid Search
-
-Combines vector similarity with BM25 scoring:
-
-```sql
-SELECT * FROM hybrid_search(
-    query_embedding => $1::vector(3072),
-    query_text => $2,
-    similarity_threshold => 0.7,
     limit_count => 10,
     file_types => ARRAY['pdf', 'docx'],
-    date_filter => NOW() - INTERVAL '30 days'
+    date_filter => NOW() - INTERVAL '30 days',
+    vector_weight => 0.7,
+    bm25_weight => 0.3
 );
 ```
 
-**Parameters:**
-- `query_embedding`: Vector representation of query
-- `query_text`: Text for keyword matching
-- `similarity_threshold`: Minimum cosine similarity (0-1)
-- `limit_count`: Maximum results to return
-- `file_types`: Filter by document types
-- `date_filter`: Only include documents after date
-
-**Returns:**
-- Document content and metadata
-- Similarity scores (vector and BM25)
-- Combined weighted score
-- File information and chunk details
+**Features:**
+- Weighted combination of vector and keyword scores
+- File type and date filtering
+- Configurable similarity thresholds
+- Optimized performance with HNSW indexing
 
 ### 2. Semantic Search
 
@@ -213,10 +231,11 @@ Pure vector similarity search:
 
 ```sql
 SELECT * FROM semantic_search(
-    query_embedding => $1::vector(3072),
+    query_embedding => '[0.1, 0.2, ...]'::vector(3072),
     similarity_threshold => 0.7,
     limit_count => 10,
-    file_types => ARRAY['pdf']
+    file_types => ARRAY['pdf'],
+    date_filter => NOW() - INTERVAL '7 days'
 );
 ```
 
@@ -233,7 +252,8 @@ Traditional BM25 text search:
 SELECT * FROM keyword_search(
     query_text => 'natural language processing',
     limit_count => 10,
-    file_types => ARRAY['txt', 'md']
+    file_types => ARRAY['txt', 'md'],
+    date_filter => NOW() - INTERVAL '1 month'
 );
 ```
 
@@ -242,159 +262,179 @@ SELECT * FROM keyword_search(
 - Boolean queries with operators
 - Legacy search compatibility
 
-## ⚙️ Configuration and Optimization
+### 4. Similarity by Document
 
-### Index Tuning
-
-#### HNSW Parameters
+Find documents similar to a given document:
 
 ```sql
--- For accuracy-focused workloads
-CREATE INDEX ... WITH (m = 32, ef_construction = 128);
-
--- For speed-focused workloads  
-CREATE INDEX ... WITH (m = 8, ef_construction = 32);
+SELECT * FROM find_similar_chunks(
+    target_chunk_id => 'uuid-here',
+    similarity_threshold => 0.8,
+    limit_count => 5
+);
 ```
 
-**Parameter Guidelines:**
-- `m`: Links per node (higher = better accuracy, more memory)
-- `ef_construction`: Build time effort (higher = better accuracy, slower build)
+### 5. Database Statistics
 
-#### GIN Parameters
+Comprehensive database analytics:
 
 ```sql
--- Optimize for frequent updates
-SET gin_pending_list_limit = '4MB';
+SELECT * FROM get_document_stats();
+```
 
--- Optimize for query performance
-SET effective_cache_size = '4GB';
+Returns:
+- Total documents and chunks
+- File type distribution
+- Average chunk size
+- Database size metrics
+- Vector dimensions
+- Date ranges
+
+## ⚙️ Performance Optimization
+
+### Index Configuration
+
+The database uses optimized indexes for maximum performance:
+
+#### HNSW Vector Index
+```sql
+CREATE INDEX rag_documents_embedding_idx 
+ON rag_documents USING hnsw (embedding vector_cosine_ops)
+WITH (m = 16, ef_construction = 64);
+```
+
+**Tuning Parameters:**
+- `m = 16`: Good balance of accuracy and memory usage
+- `ef_construction = 64`: Build-time effort for accuracy
+
+#### GIN Text Search Index
+```sql
+CREATE INDEX rag_documents_search_vector_idx 
+ON rag_documents USING gin(search_vector);
+```
+
+#### Composite Indexes
+```sql
+-- Optimized for common filter patterns
+CREATE INDEX rag_documents_file_type_processed_idx 
+ON rag_documents(file_type, processed_at);
+
+CREATE INDEX rag_documents_doc_chunk_idx 
+ON rag_documents(document_id, chunk_index);
 ```
 
 ### Performance Monitoring
 
 #### Query Performance
-
 ```sql
--- Monitor slow queries
-SELECT query, mean_exec_time, calls 
-FROM pg_stat_statements 
-WHERE query LIKE '%hybrid_search%'
-ORDER BY mean_exec_time DESC;
+-- Monitor search function performance
+SELECT 
+    schemaname,
+    tablename,
+    attname,
+    n_distinct,
+    correlation
+FROM pg_stats 
+WHERE tablename = 'rag_documents';
 
--- Index usage statistics
-SELECT indexrelname, idx_scan, idx_tup_read, idx_tup_fetch
+-- Check index usage
+SELECT 
+    indexrelname,
+    idx_scan,
+    idx_tup_read,
+    idx_tup_fetch
 FROM pg_stat_user_indexes 
 WHERE schemaname = 'public';
 ```
 
-#### Storage Usage
-
+#### Storage Analysis
 ```sql
--- Table sizes
+-- Table and index sizes
 SELECT 
     schemaname,
     tablename,
-    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as total_size,
+    pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) as table_size
 FROM pg_tables 
-WHERE schemaname = 'public';
-
--- Index sizes
-SELECT 
-    indexname,
-    pg_size_pretty(pg_relation_size(indexname::regclass)) as size
-FROM pg_indexes 
-WHERE schemaname = 'public';
+WHERE schemaname = 'public'
+ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
 ```
 
-## 🔧 Advanced Usage
+### Performance Tuning Scripts
 
-### Custom Similarity Functions
+The database includes performance testing and optimization utilities:
 
 ```sql
--- Euclidean distance search
-CREATE OR REPLACE FUNCTION euclidean_search(
-    query_embedding VECTOR(3072),
-    limit_count INTEGER DEFAULT 10
-)
-RETURNS TABLE(...) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        id, content,
-        (embedding <-> query_embedding) as distance
-    FROM rag_documents
-    ORDER BY embedding <-> query_embedding
-    LIMIT limit_count;
-END;
-$$ LANGUAGE plpgsql;
+-- Run performance test
+SELECT * FROM search_performance_test();
 ```
 
-### Batch Operations
+Returns timing for different search strategies with sample data.
+
+## 🔧 Configuration and Scaling
+
+### Memory Configuration
+
+For optimal performance, configure PostgreSQL settings:
 
 ```sql
--- Bulk insert with conflict handling
-INSERT INTO rag_documents (content, embedding, document_id, ...)
-VALUES 
-    ($1, $2, $3, ...),
-    ($4, $5, $6, ...)
-ON CONFLICT (content_hash) DO UPDATE SET
-    updated_at = NOW(),
-    embedding = EXCLUDED.embedding;
+-- Recommended settings for vector workloads
+ALTER SYSTEM SET shared_buffers = '256MB';
+ALTER SYSTEM SET effective_cache_size = '1GB';
+ALTER SYSTEM SET work_mem = '64MB';
+ALTER SYSTEM SET maintenance_work_mem = '256MB';
+
+-- Vector-specific settings
+ALTER SYSTEM SET max_parallel_workers_per_gather = 4;
+SELECT pg_reload_conf();
 ```
 
-### Data Maintenance
+### Scaling Recommendations
 
-```sql
--- Update BM25 statistics (run periodically)
-SELECT update_bm25_stats();
+#### Small Scale (< 100K documents)
+- Default Supabase configuration
+- Standard indexes
+- Basic monitoring
 
--- Cleanup old documents
-SELECT * FROM cleanup_documents(
-    older_than_days => 90,
-    remove_duplicates => true
-);
+#### Medium Scale (100K-1M documents)
+- Increase `shared_buffers` to 512MB
+- Consider read replicas
+- Monitor query performance
 
--- Rebuild indexes (maintenance)
-REINDEX INDEX CONCURRENTLY rag_documents_embedding_idx;
-```
-
-## 📈 Scaling Considerations
+#### Large Scale (1M+ documents)
+- Dedicated database instance
+- Partitioning strategy by date or document type
+- Connection pooling
+- Automated maintenance scripts
 
 ### Horizontal Scaling
 
-**Read Replicas:**
+#### Read Replicas
 ```sql
 -- Configure read replica for search workloads
 -- Primary: Write operations (ingestion)
 -- Replica: Read operations (search)
 ```
 
-**Partitioning Strategy:**
+#### Partitioning Strategy
 ```sql
 -- Partition by date for time-series data
 CREATE TABLE rag_documents_2024_01 
 PARTITION OF rag_documents
 FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+
+-- Partition by file type for workload isolation
+CREATE TABLE rag_documents_pdf 
+PARTITION OF rag_documents
+FOR VALUES IN ('pdf');
 ```
-
-### Vertical Scaling
-
-**Memory Recommendations:**
-- **Small (< 100K docs)**: 4GB RAM, 2 vCPU
-- **Medium (100K-1M docs)**: 16GB RAM, 4 vCPU  
-- **Large (1M+ docs)**: 32GB+ RAM, 8+ vCPU
-
-**Storage Recommendations:**
-- **SSD Required**: Vector indexes are I/O intensive
-- **Size Planning**: ~50KB per document chunk on average
-- **Backup Strategy**: Daily backups with point-in-time recovery
 
 ## 🔐 Security and Access Control
 
 ### Row Level Security (RLS)
 
 ```sql
--- Enable RLS
+-- Enable RLS on documents table
 ALTER TABLE rag_documents ENABLE ROW LEVEL SECURITY;
 
 -- Example policies
@@ -405,148 +445,339 @@ CREATE POLICY "public_read" ON rag_documents
     FOR SELECT USING (visibility = 'public');
 ```
 
-### API Security
+### Function Security
 
 ```sql
--- Grant minimal permissions
-GRANT SELECT ON rag_documents TO authenticated;
+-- Grant appropriate permissions
 GRANT EXECUTE ON FUNCTION hybrid_search TO authenticated;
+GRANT EXECUTE ON FUNCTION semantic_search TO authenticated;
+GRANT EXECUTE ON FUNCTION keyword_search TO authenticated;
+GRANT EXECUTE ON FUNCTION get_document_stats TO authenticated;
 
--- Revoke dangerous permissions
-REVOKE CREATE ON SCHEMA public FROM authenticated;
+-- Restrict administrative functions
+GRANT EXECUTE ON FUNCTION update_bm25_stats TO service_role;
+GRANT EXECUTE ON FUNCTION cleanup_old_documents TO service_role;
+```
+
+### API Security
+
+For direct database access, implement proper authentication:
+- Service-level authentication with service keys
+- Row-level security for multi-tenant applications
+- Function-level permissions for different user roles
+
+## 🛠️ Maintenance and Administration
+
+### Automated Maintenance
+
+#### Update Statistics
+```sql
+-- Update BM25 statistics (run periodically)
+SELECT update_bm25_stats();
+
+-- Analyze table statistics
+ANALYZE rag_documents;
+ANALYZE bm25_stats;
+```
+
+#### Cleanup Operations
+```sql
+-- Remove old documents (older than 90 days)
+SELECT cleanup_old_documents(90);
+
+-- Remove duplicate content
+DELETE FROM rag_documents a
+USING rag_documents b
+WHERE a.id < b.id 
+AND a.content_hash = b.content_hash;
+```
+
+#### Index Maintenance
+```sql
+-- Rebuild indexes (maintenance window)
+REINDEX INDEX CONCURRENTLY rag_documents_embedding_idx;
+REINDEX INDEX CONCURRENTLY rag_documents_search_vector_idx;
+```
+
+### Backup and Recovery
+
+#### Backup Strategy
+```bash
+# Full database backup
+pg_dump -h db.your-host.supabase.co -U postgres -d postgres > backup.sql
+
+# Table-specific backup
+pg_dump -h db.your-host.supabase.co -U postgres -d postgres -t rag_documents > documents_backup.sql
+
+# Data-only backup
+pg_dump -h db.your-host.supabase.co -U postgres -d postgres --data-only -t rag_documents > data_backup.sql
+```
+
+#### Recovery Procedures
+```bash
+# Restore full database
+psql -h db.your-host.supabase.co -U postgres -d postgres < backup.sql
+
+# Restore specific table
+psql -h db.your-host.supabase.co -U postgres -d postgres < documents_backup.sql
+```
+
+### Monitoring Scripts
+
+#### Database Health Monitoring
+```bash
+# Create monitoring script
+cat > scripts/monitor.sh << 'EOF'
+#!/bin/bash
+# Database health monitoring
+
+# Check connection
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.$DB_HOST" -U postgres -d postgres \
+  -c "SELECT 1;" > /dev/null 2>&1
+
+if [ $? -eq 0 ]; then
+    echo "✅ Database connection: OK"
+else
+    echo "❌ Database connection: FAILED"
+    exit 1
+fi
+
+# Check document count
+DOC_COUNT=$(PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.$DB_HOST" -U postgres -d postgres \
+  -t -c "SELECT total_chunks FROM get_document_stats();" | tr -d ' ')
+
+echo "📊 Total documents: $DOC_COUNT"
+
+# Check recent activity
+RECENT=$(PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.$DB_HOST" -U postgres -d postgres \
+  -t -c "SELECT COUNT(*) FROM rag_documents WHERE created_at > NOW() - INTERVAL '24 hours';" | tr -d ' ')
+
+echo "📈 Documents added (24h): $RECENT"
+EOF
+
+chmod +x scripts/monitor.sh
+```
+
+## 🧪 Testing and Validation
+
+### Connection Testing
+```bash
+# Test basic connection
+./scripts/deploy.sh --dry-run
+
+# Test search functions
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.your-host.supabase.co" \
+  -U postgres \
+  -d postgres \
+  -c "SELECT * FROM search_performance_test();"
+```
+
+### Data Validation
+```sql
+-- Validate vector dimensions
+SELECT 
+    id,
+    vector_dims(embedding) as dimensions,
+    CASE 
+        WHEN vector_dims(embedding) = 3072 THEN 'OK'
+        ELSE 'INVALID'
+    END as status
+FROM rag_documents 
+WHERE embedding IS NOT NULL
+LIMIT 10;
+
+-- Check for null embeddings
+SELECT COUNT(*) as null_embeddings
+FROM rag_documents 
+WHERE embedding IS NULL;
+
+-- Validate content integrity
+SELECT 
+    COUNT(*) as total_docs,
+    COUNT(CASE WHEN content IS NOT NULL AND LENGTH(content) > 0 THEN 1 END) as valid_content,
+    COUNT(CASE WHEN embedding IS NOT NULL THEN 1 END) as with_embeddings
+FROM rag_documents;
+```
+
+### Performance Testing
+```sql
+-- Test search performance with realistic queries
+EXPLAIN (ANALYZE, BUFFERS) 
+SELECT * FROM hybrid_search(
+    query_embedding => (SELECT embedding FROM rag_documents LIMIT 1),
+    query_text => 'machine learning',
+    similarity_threshold => 0.7,
+    limit_count => 10
+);
+```
+
+## 🔗 Integration Examples
+
+### Direct SQL Access
+```python
+import psycopg2
+import os
+
+# Connect to database
+conn = psycopg2.connect(
+    host=f"db.{os.getenv('SUPABASE_URL').replace('https://', '').split('.')[0]}.supabase.co",
+    database="postgres",
+    user="postgres",
+    password=os.getenv('SUPABASE_SERVICE_KEY')
+)
+
+# Execute search
+cur = conn.cursor()
+cur.execute("""
+    SELECT id, content, similarity_score 
+    FROM hybrid_search(%s, %s, 0.7, 10)
+""", (query_embedding, "machine learning"))
+
+results = cur.fetchall()
+```
+
+### Supabase Client Integration
+```python
+from supabase import create_client
+import os
+
+# Initialize client
+supabase = create_client(
+    os.getenv('SUPABASE_URL'),
+    os.getenv('SUPABASE_SERVICE_KEY')
+)
+
+# Search documents
+result = supabase.rpc('hybrid_search', {
+    'query_embedding': query_embedding,
+    'query_text': 'machine learning',
+    'similarity_threshold': 0.7,
+    'limit_count': 10
+}).execute()
+
+documents = result.data
+```
+
+### REST API Access
+```bash
+# Direct RPC call via Supabase REST API
+curl -X POST "https://your-project.supabase.co/rest/v1/rpc/hybrid_search" \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Authorization: Bearer YOUR_SERVICE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query_embedding": [0.1, 0.2, ...],
+    "query_text": "machine learning",
+    "similarity_threshold": 0.7,
+    "limit_count": 10
+  }'
 ```
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
-**1. Vector Dimension Mismatch**
-```sql
--- Check vector dimensions
-SELECT 
-    id, 
-    vector_dims(embedding) as dims
-FROM rag_documents 
-WHERE vector_dims(embedding) != 3072;
+#### 1. pgvector Extension Not Available
+```bash
+# Enable in Supabase dashboard
+# Database > Extensions > Enable "vector"
+
+# Or via SQL
+CREATE EXTENSION IF NOT EXISTS vector;
 ```
 
-**2. Index Performance Issues**
+#### 2. Connection Failures
+```bash
+# Verify connection details
+echo $SUPABASE_URL
+echo $SUPABASE_SERVICE_KEY
+
+# Test basic connection
+PGPASSWORD="$SUPABASE_SERVICE_KEY" psql \
+  -h "db.your-host.supabase.co" \
+  -U postgres \
+  -d postgres \
+  -c "SELECT version();"
+```
+
+#### 3. Performance Issues
 ```sql
 -- Check index usage
-EXPLAIN (ANALYZE, BUFFERS) 
-SELECT * FROM semantic_search('[...]'::vector(3072), 0.7, 10);
+SELECT schemaname, tablename, attname, n_distinct
+FROM pg_stats 
+WHERE tablename = 'rag_documents';
 
+-- Analyze slow queries
+SELECT query, mean_exec_time, calls
+FROM pg_stat_statements 
+WHERE query LIKE '%hybrid_search%'
+ORDER BY mean_exec_time DESC;
+```
+
+#### 4. Storage Issues
+```sql
+-- Check database size
+SELECT 
+    pg_size_pretty(pg_database_size('postgres')) as database_size,
+    pg_size_pretty(pg_total_relation_size('rag_documents')) as table_size;
+
+-- Check for bloat
+SELECT 
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size,
+    pg_stat_get_live_tuples(c.oid) as live_tuples,
+    pg_stat_get_dead_tuples(c.oid) as dead_tuples
+FROM pg_tables t
+JOIN pg_class c ON c.relname = t.tablename
+WHERE schemaname = 'public';
+```
+
+### Error Recovery
+
+#### Corrupted Indexes
+```sql
 -- Rebuild corrupted indexes
 DROP INDEX CONCURRENTLY rag_documents_embedding_idx;
 CREATE INDEX CONCURRENTLY rag_documents_embedding_idx 
 ON rag_documents USING hnsw (embedding vector_cosine_ops);
 ```
 
-**3. Memory Issues**
+#### Missing Statistics
 ```sql
--- Monitor memory usage
-SELECT 
-    pg_size_pretty(pg_database_size(current_database())) as db_size,
-    pg_size_pretty(sum(pg_total_relation_size(oid))) as total_size
-FROM pg_class;
-
--- Tune work_mem for large operations
-SET work_mem = '256MB';
+-- Reinitialize BM25 statistics
+DELETE FROM bm25_stats;
+SELECT update_bm25_stats();
 ```
 
-### Performance Tuning
+## 📈 Production Considerations
 
-```sql
--- Optimize for search workloads
-SET shared_preload_libraries = 'pg_stat_statements,auto_explain';
-SET log_min_duration_statement = 1000;
-SET auto_explain.log_min_duration = 1000;
+### Performance Monitoring
+- Set up automated monitoring for query performance
+- Monitor index effectiveness and usage
+- Track storage growth and plan capacity
+- Set up alerts for connection failures and slow queries
 
--- Vector-specific settings
-SET hnsw.ef_search = 100;  -- Higher for better recall
-SET max_parallel_workers_per_gather = 4;
-```
+### Backup Strategy
+- Daily automated backups
+- Point-in-time recovery capability
+- Test backup restoration procedures
+- Document recovery procedures
 
-## 📊 Monitoring and Metrics
+### Security
+- Regular security updates
+- Access audit logging
+- Principle of least privilege
+- Network security (VPC, firewall rules)
 
-### Key Metrics to Track
+### Scalability Planning
+- Monitor growth trends
+- Plan for partitioning when approaching 1M+ documents
+- Consider read replicas for query workloads
+- Evaluate connection pooling needs
 
-```sql
--- Query performance metrics
-SELECT 
-    function_name,
-    avg_execution_time,
-    total_calls,
-    cache_hit_ratio
-FROM monitoring_view;
-
--- Storage metrics
-SELECT 
-    table_name,
-    total_size,
-    index_size,
-    row_count,
-    average_row_size
-FROM storage_metrics;
-```
-
-### Alerting Thresholds
-
-- **Query Response Time**: > 500ms for search functions
-- **Index Size Growth**: > 20% monthly increase
-- **Error Rate**: > 1% query failures
-- **Cache Hit Ratio**: < 90% buffer cache hits
-
-## 🔗 Integration Examples
-
-### Python Integration
-
-```python
-import asyncio
-from supabase import create_client
-
-async def search_documents(query_text, query_embedding):
-    supabase = create_client(url, key)
-    
-    result = supabase.rpc('hybrid_search', {
-        'query_embedding': query_embedding,
-        'query_text': query_text,
-        'similarity_threshold': 0.7,
-        'limit_count': 10
-    }).execute()
-    
-    return result.data
-```
-
-### REST API Usage
-
-```bash
-# Direct RPC call via Supabase REST API
-curl -X POST 'https://your-project.supabase.co/rest/v1/rpc/hybrid_search' \
--H "apikey: YOUR_ANON_KEY" \
--H "Content-Type: application/json" \
--d '{
-  "query_embedding": [0.1, 0.2, ...],
-  "query_text": "machine learning",
-  "similarity_threshold": 0.7,
-  "limit_count": 10
-}'
-```
-
-## 📝 Schema Reference
-
-### Complete Field Reference
-
-| Field | Type | Description | Indexed |
-|-------|------|-------------|---------|
-| `id` | UUID | Primary key | Yes (PK) |
-| `content` | TEXT | Document text content | No |
-| `embedding` | VECTOR(3072) | Semantic embedding | Yes (HNSW) |
-| `document_id` | UUID | Parent document ID | Yes |
-| `chunk_id` | UUID | Unique chunk identifier | Yes |
-| `file_path` | TEXT | Original file path | Yes |
-| `file_type` | TEXT | File extension/type | Yes |
-| `title` | TEXT | Extracted title | No |
-| `keywords` | TEXT[] | Extracted keywords | No |
-| `search_vector` | TSVECTOR | Full-text search vector | Yes (GIN) |
-| `created_at` | TIMESTAMPTZ | Creation timestamp | Yes |
+The Supabase Vector Database provides a complete, production-ready foundation for RAG applications with the flexibility to operate independently while serving multiple clients and use cases.
