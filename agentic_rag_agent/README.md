@@ -12,6 +12,7 @@ The PydanticAI Agentic RAG Agent is an advanced retrieval-augmented generation s
 - **Source Triangulation**: Cross-reference multiple sources for accuracy verification
 - **Explainable AI**: Transparent reasoning chains and decision processes
 - **Hybrid Search Integration**: Seamless combination of vector and keyword search
+- **LLM Integration**: Proper prompt engineering and answer synthesis
 
 ## 🏗️ Service Architecture
 
@@ -19,10 +20,10 @@ The PydanticAI Agentic RAG Agent is an advanced retrieval-augmented generation s
 
 ```
 📁 agentic_rag_agent/
-├── 📄 main.py                          # Service entry point
+├── 📄 main.py                          # FastAPI service entry point
 ├── 📄 config.py                        # Configuration management
 ├── 📄 agents/
-│   ├── 📄 base_agent.py                # Core agent implementation
+│   ├── 📄 agentic_rag_service.py       # Main service orchestration
 │   ├── 📄 planning_agent.py            # Query planning logic
 │   ├── 📄 reflection_agent.py          # Self-assessment capabilities
 │   └── 📄 search_agent.py              # Search coordination
@@ -31,13 +32,14 @@ The PydanticAI Agentic RAG Agent is an advanced retrieval-augmented generation s
 │   ├── 📄 response_models.py           # Output data models
 │   └── 📄 internal_models.py           # Internal processing models
 ├── 📄 tools/
-│   ├── 📄 search_tools.py              # Database search functions
+│   ├── 📄 serach_tools.py              # Database search functions
 │   ├── 📄 analysis_tools.py            # Content analysis utilities
 │   └── 📄 triangulation_tools.py       # Source verification tools
 ├── 📄 services/
 │   ├── 📄 database_manager.py          # Database operations
 │   ├── 📄 embedding_service.py         # Embedding generation
-│   └── 📄 reranking_service.py         # Result reranking
+│   ├── 📄 reranking_service.py         # Result reranking
+│   └── 📄 llm_service.py               # LLM integration and prompts
 ├── 📄 utils/
 │   ├── 📄 logger.py                    # Logging configuration
 │   ├── 📄 metrics.py                   # Performance monitoring
@@ -49,11 +51,11 @@ The PydanticAI Agentic RAG Agent is an advanced retrieval-augmented generation s
 
 ```mermaid
 graph TD
-    A[User Query] --> B[Query Analysis]
+    A[User Query] --> B[Query Analysis & Enhancement]
     B --> C[Planning Phase]
     C --> D[Iterative Search]
     D --> E[Source Triangulation]
-    E --> F[Answer Synthesis]
+    E --> F[Answer Synthesis with LLM]
     F --> G[Self-Reflection]
     G --> H{Quality Check}
     H -->|Pass| I[Final Response]
@@ -66,7 +68,8 @@ graph TD
 ### 1. Query Planning & Decomposition
 
 **Intelligent Query Analysis:**
-- Classifies queries as factual, analytical, or comparative
+- Classifies queries by type (definitional, procedural, comparative, causal, analytical, etc.)
+- Calculates complexity scores based on length, technical terms, and multi-part structure
 - Breaks down complex questions into manageable sub-queries
 - Determines optimal search strategies based on query type
 - Predicts relevant source types and content domains
@@ -74,7 +77,7 @@ graph TD
 **Example Planning Process:**
 ```python
 # Input: "Compare machine learning algorithms for NLP tasks"
-query_plan = await agent.plan_query_execution(user_query)
+query_plan = await planning_agent.create_query_plan(user_query)
 # Output: QueryPlan with sub-queries, strategy, and reasoning
 ```
 
@@ -85,6 +88,7 @@ query_plan = await agent.plan_query_execution(user_query)
 - Identifies information gaps and coverage areas
 - Adapts search terms based on intermediate findings
 - Tracks unique sources and content diversity
+- Adjusts similarity thresholds per iteration
 
 **Search Evolution:**
 ```python
@@ -96,32 +100,41 @@ query_plan = await agent.plan_query_execution(user_query)
 ### 3. Self-Reflection & Quality Assessment
 
 **Multi-Dimensional Evaluation:**
-- **Quality Score**: Keyword overlap, source diversity, answer length
+- **Quality Score**: Content quality, source utilization, language clarity, structure
 - **Completeness Score**: Question component coverage assessment
-- **Accuracy Assessment**: Confidence levels and reliability indicators
+- **Accuracy Assessment**: Source reliability and factual consistency
 - **Gap Detection**: Missing information identification
 
 **Confidence Calculation:**
 ```python
-quality_score = (keyword_overlap + source_diversity + length_score) / 3
-confidence = quality_score * completeness_score
+quality_score = (relevance + source_utilization + language_quality + structure) / 4
+confidence = quality_score * completeness_score * source_reliability
 ```
 
 ### 4. Source Triangulation
 
 **Verification Process:**
-- Extracts key concepts from primary sources
-- Searches for corroborating evidence
-- Seeks alternative perspectives
+- Extracts key concepts and factual claims from primary sources
+- Searches for corroborating evidence using verification queries
+- Seeks alternative perspectives and contradictory information
 - Cross-references facts across multiple documents
+- Assesses source credibility and authority
 
 ### 5. Hybrid Search with Reranking
 
 **Multi-Stage Retrieval:**
-1. **Vector Search**: Semantic similarity using embeddings
+1. **Vector Search**: Semantic similarity using OpenAI embeddings
 2. **Keyword Search**: BM25 scoring for exact matches
-3. **Hybrid Combination**: Weighted scoring (70% vector, 30% BM25)
-4. **Cross-Encoder Reranking**: Fine-grained relevance assessment
+3. **Hybrid Combination**: Weighted scoring (70% vector, 30% BM25 by default)
+4. **Cross-Encoder Reranking**: Fine-grained relevance assessment using sentence-transformers
+
+### 6. LLM Integration
+
+**Prompt Engineering:**
+- Specialized prompts for answer generation, query enhancement, and follow-up generation
+- Context-aware prompt construction with source formatting
+- Temperature and token management for consistent outputs
+- Error handling and fallback responses
 
 ## 🚀 Getting Started
 
@@ -134,9 +147,6 @@ cd agentic_rag_agent/
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Install optional dependencies for enhanced features
-pip install sentence-transformers torch
 ```
 
 ### Environment Configuration
@@ -149,37 +159,97 @@ OPENAI_API_KEY=your_openai_api_key
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_KEY=your_supabase_service_key
 
+# Database Configuration
+TABLE_NAME=rag_documents
+
 # Model Configuration
 LLM_MODEL=gpt-4-turbo
 EMBEDDING_MODEL=text-embedding-3-large
 RERANK_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2
 
-# Performance Settings
-MAX_ITERATIONS=3
-DEFAULT_MAX_RESULTS=10
+# Search Configuration
+SIMILARITY_THRESHOLD=0.7
+MAX_RESULTS=10
 ENABLE_RERANKING=true
+RERANK_TOP_K=20
+
+# Hybrid Search Weights
+VECTOR_WEIGHT=0.7
+BM25_WEIGHT=0.3
+
+# Agentic Features
+MAX_ITERATIONS=3
+MIN_SOURCES_PER_ITERATION=3
+ENABLE_QUERY_PLANNING=true
+ENABLE_SOURCE_TRIANGULATION=true
+ENABLE_SELF_REFLECTION=true
+
+# Performance Settings
+MAX_CONCURRENT_SEARCHES=3
+SEARCH_TIMEOUT_SECONDS=30
+EMBEDDING_BATCH_SIZE=100
+
+# Caching
+ENABLE_QUERY_CACHE=true
+CACHE_TTL_MINUTES=60
+ENABLE_EMBEDDING_CACHE=true
+EMBEDDING_CACHE_SIZE=10000
 
 # Logging
 LOG_LEVEL=INFO
+DEBUG_MODE=false
+```
+
+### Running the Service
+
+```bash
+# Start the FastAPI server
+python main.py
+
+# Or with uvicorn directly
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
 ### Basic Usage
 
+#### Python Client
+
 ```python
 import asyncio
-from agentic_rag_agent import AgenticRAGService, RAGConfig
+import httpx
+
+async def ask_question():
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "http://localhost:8001/ask",
+            json={
+                "question": "What are the key differences between transformer and CNN architectures for computer vision tasks?",
+                "enable_iteration": True,
+                "enable_reflection": True,
+                "enable_triangulation": True,
+                "max_results": 10
+            }
+        )
+        
+        result = response.json()
+        print(f"Answer: {result['answer']}")
+        print(f"Confidence: {result['confidence']:.2f}")
+        print(f"Sources: {len(result['sources'])}")
+        print(f"Iterations: {result['iterations_completed']}")
+
+asyncio.run(ask_question())
+```
+
+#### Direct Service Usage
+
+```python
+import asyncio
+from agentic_rag_agent.config import get_config
+from agentic_rag_agent.agents.agentic_rag_service import AgenticRAGService
 
 async def main():
     # Configure the service
-    config = RAGConfig(
-        supabase_url="your_supabase_url",
-        supabase_key="your_supabase_key",
-        table_name="rag_documents",
-        llm_model="gpt-4-turbo",
-        embedding_model="text-embedding-3-large",
-        enable_reranking=True,
-        default_max_results=10
-    )
+    config = get_config()
     
     # Initialize the agentic RAG service
     rag_service = AgenticRAGService(config)
@@ -234,56 +304,97 @@ if __name__ == "__main__":
 | `rerank_top_k` | int | 20 | Documents to consider for reranking |
 | `max_context_length` | int | 8000 | Maximum context for answer generation |
 | `min_confidence_threshold` | float | 0.3 | Minimum confidence for responses |
+| `max_iterations` | int | 3 | Maximum search iterations |
+| `min_sources_per_iteration` | int | 3 | Minimum sources required per iteration |
 
-## 🔧 Advanced Features
+## 🔧 API Endpoints
 
-### Custom Agent Tools
+### Core Endpoints
 
-```python
-@agent.tool
-async def domain_specific_search(
-    ctx: RunContext,
-    query: str,
-    domain: str,
-    specialty_filters: List[str]
-) -> SearchResults:
-    """Custom tool for domain-specific searches"""
-    # Implement specialized search logic
-    pass
+#### `/ask` - Full Agentic Processing
+```http
+POST /ask
+Content-Type: application/json
 
-# Register custom tool
-agent.register_tool(domain_specific_search)
+{
+  "question": "Your question here",
+  "enable_iteration": true,
+  "enable_reflection": true,
+  "enable_triangulation": true,
+  "search_method": "hybrid",
+  "max_results": 10,
+  "file_types": ["pdf", "md"],
+  "similarity_threshold": 0.7
+}
 ```
 
-### Multi-Modal Query Support
+#### `/ask/simple` - Basic RAG
+```http
+POST /ask/simple
+Content-Type: application/json
 
-```python
-# Image + text queries
-response = await rag_service.ask_multimodal(
-    text_query="Explain this diagram",
-    image_path="path/to/diagram.png",
-    enable_ocr=True
-)
-
-# Audio + text queries  
-response = await rag_service.ask_multimodal(
-    text_query="Summarize this meeting",
-    audio_path="path/to/meeting.mp3",
-    enable_transcription=True
-)
+{
+  "question": "Your question here",
+  "search_method": "hybrid",
+  "max_results": 5
+}
 ```
 
-### Custom Reflection Criteria
+#### `/ask/batch` - Batch Processing
+```http
+POST /ask/batch
+Content-Type: application/json
 
-```python
-class CustomReflectionAgent:
-    def assess_domain_accuracy(self, answer: str, domain: str) -> float:
-        # Implement domain-specific accuracy assessment
-        pass
-    
-    def check_citation_quality(self, sources: List[DocumentChunk]) -> float:
-        # Evaluate source credibility and citation quality
-        pass
+{
+  "questions": ["Question 1", "Question 2"],
+  "enable_agentic": true,
+  "max_concurrency": 3
+}
+```
+
+### Utility Endpoints
+
+#### `/analyze/query` - Query Analysis
+```http
+POST /analyze/query?question=Your question here
+```
+
+#### `/health` - Health Check
+```http
+GET /health
+```
+
+#### `/metrics` - Performance Metrics
+```http
+GET /metrics
+```
+
+#### `/cache/clear` - Clear Caches
+```http
+POST /cache/clear
+```
+
+### WebSocket Support
+
+#### `/ws/ask` - Streaming Responses
+```javascript
+const ws = new WebSocket('ws://localhost:8001/ws/ask');
+
+ws.onopen = function() {
+    ws.send(JSON.stringify({
+        question: "Your question here",
+        enable_iteration: true
+    }));
+};
+
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.type === 'reasoning') {
+        console.log('Reasoning step:', data.step);
+    } else if (data.type === 'response') {
+        console.log('Final answer:', data.data.answer);
+    }
+};
 ```
 
 ## 📊 Response Models
@@ -300,6 +411,12 @@ class AgenticRAGResponse(BaseModel):
     search_iterations: List[SearchResults]  # Search history
     reasoning_chain: List[str]           # Step-by-step reasoning
     follow_up_suggestions: List[str]     # Suggested next questions
+    processing_time_ms: float            # Total processing time
+    tokens_used: Optional[int]           # Tokens consumed by LLM
+    iterations_completed: int            # Number of search iterations
+    source_triangulation_performed: bool # Whether triangulation was used
+    cross_validated_facts: List[str]     # Facts verified across sources
+    potential_biases: List[str]          # Identified potential biases
 ```
 
 ### QueryPlan Details
@@ -312,6 +429,8 @@ class QueryPlan(BaseModel):
     reasoning: str                      # Planning rationale
     expected_sources: List[str]         # Predicted relevant file types
     complexity_score: float             # Query complexity (0-1)
+    estimated_time: Optional[float]     # Estimated processing time
+    recommended_iterations: Optional[int] # Recommended search iterations
 ```
 
 ### ReflectionResult Components
@@ -324,6 +443,9 @@ class ReflectionResult(BaseModel):
     missing_information: List[str]     # Identified gaps
     suggested_follow_ups: List[str]    # Recommended next questions
     needs_more_search: bool           # Should continue searching
+    reasoning_quality: Optional[float] # Quality of reasoning (0-1)
+    source_diversity: Optional[float]  # Diversity of sources (0-1)
+    factual_consistency: Optional[float] # Consistency score (0-1)
 ```
 
 ## 🎯 Use Cases and Examples
@@ -406,34 +528,58 @@ questions = [
     "What are neural networks?"
 ]
 
-responses = await rag_service.batch_ask(
-    questions=questions,
-    enable_parallel=True,
-    max_concurrency=3
-)
+# Via API
+response = await client.post("/ask/batch", json={
+    "questions": questions,
+    "enable_agentic": True,
+    "max_concurrency": 3
+})
 ```
 
 ### Memory Management
 
 ```python
 # Configure memory limits for large document sets
-config.max_context_tokens = 4000      # Limit context size
-config.enable_chunk_streaming = True  # Stream large responses
-config.garbage_collect_interval = 100 # Clean up unused objects
+config.max_context_length = 4000      # Limit context size
+config.max_concurrent_searches = 2    # Limit concurrent operations
+config.embedding_batch_size = 50      # Smaller batches for memory
 ```
 
 ## 🔍 Monitoring and Debugging
 
 ### Performance Metrics
 
-```python
-# Access performance metrics
-metrics = rag_service.get_performance_metrics()
+The service provides comprehensive metrics via the `/metrics` endpoint:
 
-print(f"Average query time: {metrics.avg_query_time}ms")
-print(f"Search success rate: {metrics.search_success_rate}%")
-print(f"Average confidence: {metrics.avg_confidence}")
-print(f"Cache hit rate: {metrics.cache_hit_rate}%")
+```json
+{
+  "total_queries": 150,
+  "avg_query_time_ms": 2500,
+  "successful_queries": 145,
+  "failed_queries": 5,
+  "avg_confidence_score": 0.82,
+  "avg_iterations_per_query": 2.3,
+  "llm_calls_total": 450,
+  "cache_hit_rate": 0.65
+}
+```
+
+### Health Monitoring
+
+```python
+# Check service health
+health = await client.get("/health")
+print(health.json())
+
+# Output:
+{
+  "status": "healthy",
+  "database_connected": true,
+  "embedding_service": "healthy",
+  "llm_service": "healthy",
+  "success_rate": 96.67,
+  "avg_response_time": 2.1
+}
 ```
 
 ### Debug Mode
@@ -448,44 +594,30 @@ config.save_intermediate_results = True
 # - Detailed query planning decisions
 # - Search iteration results
 # - Reflection scoring breakdowns
-# - Tool execution traces
+# - LLM prompt and response logging
 ```
 
 ### Query Analysis
 
 ```python
-# Analyze query processing
-analysis = await rag_service.analyze_query(
-    "Complex technical question about distributed systems"
-)
+# Analyze query processing without execution
+analysis = await client.post("/analyze/query", params={"question": "Complex technical question"})
 
-print(f"Query complexity: {analysis.complexity_score}")
-print(f"Predicted processing time: {analysis.estimated_time}s")
-print(f"Recommended strategy: {analysis.recommended_strategy}")
-print(f"Expected iterations: {analysis.expected_iterations}")
+print(f"Query complexity: {analysis['complexity_score']}")
+print(f"Predicted processing time: {analysis['estimated_processing_time']}s")
+print(f"Recommended strategy: {analysis['recommended_strategy']}")
 ```
 
 ## 🚨 Error Handling and Resilience
 
 ### Graceful Degradation
 
-```python
-# Fallback strategies for service failures
-class ResilientRAGService(AgenticRAGService):
-    async def ask_with_fallback(self, question: str):
-        try:
-            # Full agentic approach
-            return await self.ask_with_planning(question)
-        except EmbeddingServiceError:
-            # Fall back to keyword search only
-            return await self.ask_keyword_only(question)
-        except DatabaseError:
-            # Fall back to cached responses
-            return await self.ask_from_cache(question)
-        except Exception:
-            # Ultimate fallback to LLM-only response
-            return await self.ask_llm_only(question)
-```
+The service implements multiple fallback strategies:
+
+1. **LLM Service Failure**: Falls back to template-based responses
+2. **Embedding Service Failure**: Uses keyword-only search
+3. **Database Connectivity Issues**: Returns cached responses when available
+4. **Search Timeout**: Returns partial results with appropriate confidence scores
 
 ### Retry Logic
 
@@ -493,112 +625,8 @@ class ResilientRAGService(AgenticRAGService):
 # Automatic retry with exponential backoff
 config.max_retries = 3
 config.retry_backoff_factor = 2.0
-config.retry_on_failures = [
-    "timeout_error",
-    "rate_limit_error", 
-    "temporary_service_error"
-]
+config.enable_graceful_degradation = True
 ```
-
-## 🔗 Integration Examples
-
-### REST API Wrapper
-
-```python
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-
-app = FastAPI()
-rag_service = AgenticRAGService(config)
-
-class QueryRequest(BaseModel):
-    question: str
-    enable_iteration: bool = True
-    enable_reflection: bool = True
-    max_results: int = 10
-
-@app.post("/ask")
-async def ask_question(request: QueryRequest):
-    try:
-        response = await rag_service.ask_with_planning(
-            question=request.question,
-            enable_iteration=request.enable_iteration,
-            enable_reflection=request.enable_reflection
-        )
-        return response.dict()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/health")
-async def health_check():
-    # Verify service health
-    stats = rag_service.get_health_status()
-    return {"status": "healthy", "details": stats}
-```
-
-### Streaming Responses
-
-```python
-from fastapi.responses import StreamingResponse
-
-@app.post("/ask/stream")
-async def ask_question_stream(request: QueryRequest):
-    async def generate_response():
-        async for chunk in rag_service.ask_streaming(request.question):
-            yield f"data: {json.dumps(chunk.dict())}\n\n"
-    
-    return StreamingResponse(
-        generate_response(), 
-        media_type="text/plain"
-    )
-```
-
-### Webhook Integration
-
-```python
-# Webhook for processing results
-@app.post("/webhook/process_complete")
-async def process_complete_webhook(payload: dict):
-    # Handle completed processing notifications
-    job_id = payload.get("job_id")
-    result = payload.get("result")
-    
-    # Store results, notify users, trigger downstream processes
-    await handle_completion(job_id, result)
-```
-
-## 📝 API Reference
-
-### Core Methods
-
-#### `ask_with_planning()`
-Primary method for agentic question answering.
-
-**Parameters:**
-- `question: str` - The user's question
-- `enable_iteration: bool = True` - Enable iterative search
-- `enable_reflection: bool = True` - Enable quality assessment
-- `enable_triangulation: bool = True` - Enable source verification
-
-**Returns:** `AgenticRAGResponse`
-
-#### `ask()` 
-Simplified question answering without full agentic features.
-
-**Parameters:**
-- `question: str` - The user's question
-- `search_method: str = "hybrid"` - Search strategy
-- `file_types: Optional[List[str]] = None` - File type filters
-- `max_results: int = 10` - Maximum results
-
-**Returns:** `RAGResponse`
-
-### Utility Methods
-
-- `get_performance_metrics() -> PerformanceMetrics`
-- `get_health_status() -> HealthStatus`
-- `analyze_query(query: str) -> QueryAnalysis`
-- `clear_cache() -> None`
 
 ## 🤝 Contributing
 
@@ -618,30 +646,7 @@ pytest tests/
 # Run linting
 black agentic_rag_agent/
 flake8 agentic_rag_agent/
-```
-
-### Adding Custom Tools
-
-```python
-# Example custom tool implementation
-@agent.tool
-async def custom_analysis_tool(
-    ctx: RunContext,
-    data: List[DocumentChunk],
-    analysis_type: str
-) -> AnalysisResult:
-    """
-    Custom analysis tool for domain-specific processing.
-    
-    Args:
-        data: Document chunks to analyze
-        analysis_type: Type of analysis to perform
-        
-    Returns:
-        AnalysisResult with findings and confidence
-    """
-    # Implement custom logic
-    pass
+mypy agentic_rag_agent/
 ```
 
 ### Testing Guidelines
@@ -649,28 +654,76 @@ async def custom_analysis_tool(
 ```python
 # Example test structure
 import pytest
-from agentic_rag_agent import AgenticRAGService
+from agentic_rag_agent.agents.agentic_rag_service import AgenticRAGService
 
 @pytest.mark.asyncio
 async def test_query_planning():
     service = AgenticRAGService(test_config)
     
     # Test query planning
-    plan = await service.agent.plan_query_execution(
+    plan = await service.planning_agent.create_query_plan(
         "Complex test question"
     )
     
     assert plan.complexity_score > 0
     assert len(plan.sub_queries) > 1
     assert plan.search_strategy in ["hybrid", "semantic", "keyword"]
-
-@pytest.mark.asyncio  
-async def test_iterative_search():
-    # Test iterative search behavior
-    pass
-
-@pytest.mark.asyncio
-async def test_reflection_quality():
-    # Test reflection and quality assessment
-    pass
 ```
+
+## 📋 Dependencies
+
+### Core Dependencies
+
+- **pydantic-ai**: Core framework
+- **supabase**: Vector database
+- **openai**: LLM and embedding APIs
+- **sentence-transformers**: Local embeddings and reranking
+- **fastapi**: Web framework
+- **psycopg2-binary**: PostgreSQL adapter
+
+### Optional Dependencies
+
+- **prometheus-client**: Metrics export
+- **structlog**: Structured logging
+- **rich**: Enhanced console output
+- **nltk/spacy**: Advanced text processing
+
+## 🔗 Architecture Decisions
+
+### Why This Architecture?
+
+1. **Modular Design**: Each component (planning, search, reflection) is independent and testable
+2. **Async-First**: Built for high concurrency and non-blocking operations
+3. **Configurable**: Extensive configuration options for different use cases
+4. **Observable**: Comprehensive logging, metrics, and debugging capabilities
+5. **Extensible**: Easy to add new search strategies, reflection criteria, or triangulation methods
+
+### Design Patterns Used
+
+- **Strategy Pattern**: For different search methods and reranking strategies
+- **Observer Pattern**: For metrics collection and logging
+- **Factory Pattern**: For creating internal models and components
+- **Chain of Responsibility**: For processing workflow steps
+
+## 📚 Additional Resources
+
+- [Supabase Vector Documentation](https://supabase.com/docs/guides/ai)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
+- [Sentence Transformers Documentation](https://www.sbert.net/)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+1. **High Memory Usage**: Reduce `embedding_cache_size` and `max_context_length`
+2. **Slow Responses**: Enable caching and reduce `max_iterations`
+3. **Low Quality Answers**: Increase `similarity_threshold` and enable triangulation
+4. **API Rate Limits**: Implement request throttling and caching
+5. **Database Connection Issues**: Check Supabase credentials and network connectivity
+
+### Performance Tuning
+
+- **For Speed**: Disable triangulation, reduce iterations, increase similarity threshold
+- **For Quality**: Enable all agentic features, allow more iterations, lower similarity threshold
+- **For Scale**: Enable caching, use batch processing, implement connection pooling
