@@ -1,5 +1,4 @@
-# Environment
 .env
 vector_database/.env
 ingestion_service/.env
-agentic_rag_service/.env
+agentic_rag_agent/.env
