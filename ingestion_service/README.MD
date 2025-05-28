@@ -4,14 +4,15 @@
 
 The LlamaIndex Ingestion Service is a **standalone, production-ready** document processing pipeline designed to ingest, process, and prepare diverse file types for Retrieval-Augmented Generation (RAG) systems. It operates independently with its own FastAPI server, database connections, and processing capabilities.
 
-## 🎯 Goals
+## ✨ Key Features
 
-- **Universal File Support**: Process 15+ file types including documents, spreadsheets, images, audio, code, and archives
-- **Context-Aware Processing**: Intelligent chunking that preserves document structure and semantic meaning
-- **Multi-Modal Intelligence**: Extract text from images (OCR), transcribe audio, and handle complex document formats
-- **Scalable Architecture**: Concurrent processing with configurable batch sizes and resource limits
-- **Production Ready**: Comprehensive error handling, logging, monitoring, and health checks
-- **Independent Operation**: Complete standalone service that can be deployed and scaled independently
+- 🌐 Universal File Support: 15+ file types including PDFs, Office documents, images, audio, code, and archives
+- 🧠 Intelligent Processing: Context-aware chunking with semantic boundaries and hierarchical document structure preservation
+- 💰 Cost-Optimized Embeddings: Automatic routing between regular and Batch API based on volume (50% cost reduction for large batches)
+- 🎯 Multi-Modal Intelligence: OCR for images, speech-to-text for audio, specialized parsers for code
+- ⚡ Scalable Architecture: Concurrent processing, configurable batch sizes, and async operations
+- 📊 Production Monitoring: Comprehensive metrics, health checks, and batch job tracking
+- 🐳 Flexible Deployment: Docker, Docker Compose, or standalone Python
 
 ## 🏗️ Service Architecture
 
@@ -32,190 +33,113 @@ The LlamaIndex Ingestion Service is a **standalone, production-ready** document 
 └── 📄 README.md                        # This documentation
 ```
 
-### Enhanced Processing Pipeline
+### System Architecture
 
 ```mermaid
 graph TB
-    A[HTTP Request] --> B[FastAPI Router]
-    B --> C[Request Validation]
-    C --> D[Background Task Queue]
-    D --> E[File Validation]
-    E --> F[Multi-Modal Processing]
-    F --> G[Context-Aware Chunking]
-    G --> H[Metadata Extraction]
-    H --> I[Embedding Generation]
-    I --> J[Supabase Storage]
-    J --> K[Status Update]
-    K --> L[Response/Notification]
+    subgraph "Ingestion Service"
+        A[FastAPI Server] --> B[Request Router]
+        B --> C{File Type?}
+        C -->|Documents| D[Document Processor]
+        C -->|Images| E[OCR Processor]
+        C -->|Audio| F[Speech-to-Text]
+        C -->|Code| G[Code Analyzer]
+        
+        D --> H[Context-Aware Chunker]
+        E --> H
+        F --> H
+        G --> H
+        
+        H --> I[Metadata Extractor]
+        I --> J{Chunk Count}
+        
+        J -->|< 100 chunks| K[Regular API]
+        J -->|≥ 100 chunks| L[Batch API]
+        
+        K --> M[Immediate Embeddings]
+        L --> N[Batch Queue]
+        
+        M --> O[(Supabase Vector DB)]
+        N --> P[Batch Processor]
+        P --> O
+        
+        Q[Background Tasks] --> R[Status Tracking]
+        R --> S[Task Storage]
+    end
+    
+    T[Client] -->|HTTP/REST| A
+    U[Monitoring] --> V[Metrics/Health]
 ```
 
-## 🚀 Independent Deployment
+### Processing Pipeline
 
-### Prerequisites
-
-- Python 3.11+
-- Supabase account with vector database (see [Vector Database Setup](#vector-database-setup))
-- OpenAI API key
-- Docker (optional, for containerized deployment)
-
-### Quick Start (Standalone)
-
-1. **Clone and Setup**
-```bash
-git clone <repository-url>
-cd ingestion_service/
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant FileProcessor
+    participant Chunker
+    participant MetadataExtractor
+    participant EmbeddingService
+    participant BatchAPI
+    participant Database
+    
+    Client->>API: POST /ingest/files
+    API->>API: Validate request
+    API->>Client: Return task_id
+    
+    Note over API: Background Processing
+    
+    API->>FileProcessor: Process files
+    loop For each file
+        FileProcessor->>FileProcessor: Detect type & extract content
+        FileProcessor->>Chunker: Send documents
+        Chunker->>Chunker: Apply smart chunking
+        Chunker->>MetadataExtractor: Enhance chunks
+        MetadataExtractor->>MetadataExtractor: Extract keywords, summary, etc.
+    end
+    
+    MetadataExtractor->>EmbeddingService: Check chunk count
+    
+    alt Chunks < 100 (Regular API)
+        EmbeddingService->>EmbeddingService: Generate embeddings immediately
+        EmbeddingService->>Database: Store with embeddings
+    else Chunks ≥ 100 (Batch API)
+        EmbeddingService->>Database: Store without embeddings
+        EmbeddingService->>BatchAPI: Create batch job
+        Note over BatchAPI: Process within 24h
+        BatchAPI->>Database: Update embeddings when complete
+    end
+    
+    Database->>API: Update task status
+    Client->>API: GET /ingest/status/{task_id}
+    API->>Client: Return processing results
 ```
-
-2. **Environment Configuration**
-```bash
-# Copy example environment file
-cp .env.example .env
-
-# Edit .env with your configuration
-nano .env
-```
-
-Required environment variables:
-```bash
-# Required
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your_service_key_here
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Optional - Service Configuration
-HOST=0.0.0.0
-PORT=8000
-LOG_LEVEL=INFO
-
-# Optional - Processing Configuration
-CHUNK_SIZE=1024
-CHUNK_OVERLAP=200
-MAX_FILE_SIZE_MB=100
-BATCH_SIZE=100
-MAX_CONCURRENT_FILES=5
-```
-
-3. **Vector Database Setup**
-
-The ingestion service requires a properly configured vector database. If you haven't set it up yet:
-
-```bash
-# Navigate to vector database directory
-cd ../vector_database/
-
-# Set database environment variables
-export SUPABASE_URL="your_supabase_url"
-export SUPABASE_SERVICE_KEY="your_service_key"
-
-# Run deployment script
-chmod +x scripts/deploy.sh
-./scripts/deploy.sh
-
-# Return to ingestion service
-cd ../ingestion_service/
-```
-
-4. **Run the Service**
-```bash
-# Development mode
-python main.py
-
-# Production mode
-uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
-```
-
-5. **Verify Service**
-```bash
-# Check health
-curl http://localhost:8000/health
-
-# Check configuration
-curl http://localhost:8000/config
-
-# View API documentation
-open http://localhost:8000/docs
-```
-
-### Docker Deployment (Recommended for Production)
-
-1. **Using Docker Compose**
-```bash
-# Create docker-compose.yml
-cat > docker-compose.yml << EOF
-version: '3.8'
-
-services:
-  ingestion-service:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - SUPABASE_URL=\${SUPABASE_URL}
-      - SUPABASE_SERVICE_KEY=\${SUPABASE_SERVICE_KEY}
-      - OPENAI_API_KEY=\${OPENAI_API_KEY}
-      - LOG_LEVEL=INFO
-    volumes:
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-EOF
-
-# Deploy
-docker-compose up -d
-```
-
-2. **Using Docker directly**
-```bash
-# Build image
-docker build -t ingestion-service .
-
-# Run container
-docker run -d \
-  --name ingestion-service \
-  -p 8000:8000 \
-  -e SUPABASE_URL="your_supabase_url" \
-  -e SUPABASE_SERVICE_KEY="your_service_key" \
-  -e OPENAI_API_KEY="your_openai_key" \
-  -v $(pwd)/uploads:/app/uploads \
-  -v $(pwd)/logs:/app/logs \
-  ingestion-service
-```
-
 ## 📡 API Reference
 
 ### Core Endpoints
 
-#### Health Check
-```bash
-GET /health
-```
-Returns service health status and database connectivity.
-
-#### Ingest Files
-```bash
+#### 1. **Ingest Files**
+```http
 POST /ingest/files
 Content-Type: application/json
 
 {
   "file_paths": ["/path/to/doc1.pdf", "/path/to/doc2.docx"],
-  "batch_size": 50
+  "batch_size": 50  // Optional: Override default batch size
+}
+
+Response:
+{
+  "task_id": "ingest_files_123",
+  "status": "started",
+  "message": "Processing 2 files",
+  "embedding_method": "batch"  // or "regular" based on estimated chunk count
 }
 ```
 
-#### Ingest Directory
-```bash
+#### 2. **Ingest Directory**
+```http
 POST /ingest/directory
 Content-Type: application/json
 
@@ -226,381 +150,534 @@ Content-Type: application/json
 }
 ```
 
-#### Upload and Ingest
-```bash
+#### 3. **Upload and Ingest**
+```http
 POST /ingest/upload
 Content-Type: multipart/form-data
 
-# Upload files directly for processing
+Files: [file1.pdf, file2.docx, ...]
 ```
 
-#### Task Status
-```bash
+#### 4. **Check Task Status**
+```http
 GET /ingest/status/{task_id}
-```
-Check the status of a processing task.
 
-#### Service Statistics
-```bash
-GET /stats
-```
-Get comprehensive service and database statistics.
-
-### Response Format
-
-All endpoints return structured JSON responses:
-
-```json
+Response:
 {
   "task_id": "ingest_files_123",
   "status": "completed",
-  "processed": ["/path/to/doc1.pdf"],
+  "processed": ["/path/to/doc1.pdf", "/path/to/doc2.docx"],
   "failed": [],
-  "total_documents": 1,
-  "total_chunks": 25,
-  "processing_time": 12.5,
+  "total_documents": 2,
+  "total_chunks": 156,
+  "processing_time": 23.5,
+  "embedding_method": "batch",  // Method used for embeddings
   "error": null
 }
 ```
 
-## 🔧 Configuration
+### Batch API Endpoints
 
-### Complete Configuration Options
+#### 5. **Process Pending Batches**
+```http
+POST /batch/process-pending
 
-The service supports extensive configuration through environment variables:
-
-#### Core Settings
-- `SUPABASE_URL` - Supabase project URL (required)
-- `SUPABASE_SERVICE_KEY` - Service key with database access (required)
-- `OPENAI_API_KEY` - OpenAI API key for embeddings (required)
-- `TABLE_NAME` - Database table name (default: "rag_documents")
-
-#### Processing Settings
-- `CHUNK_SIZE` - Maximum characters per chunk (default: 1024)
-- `CHUNK_OVERLAP` - Overlap between chunks (default: 200)
-- `MAX_FILE_SIZE_MB` - Maximum file size in MB (default: 100)
-- `BATCH_SIZE` - Database insertion batch size (default: 100)
-- `MAX_CONCURRENT_FILES` - Concurrent file processing limit (default: 5)
-
-#### Feature Toggles
-- `ENABLE_SEMANTIC_CHUNKING` - Enable semantic boundary detection (default: true)
-- `ENABLE_HIERARCHICAL_CHUNKING` - Preserve document structure (default: true)
-- `EXTRACT_METADATA` - Extract enhanced metadata (default: true)
-- `ENABLE_OCR` - Process images with OCR (default: true)
-- `ENABLE_SPEECH_TO_TEXT` - Transcribe audio files (default: true)
-
-#### Model Configuration
-- `EMBEDDING_MODEL` - OpenAI embedding model (default: "text-embedding-3-large")
-- `LLM_MODEL` - LLM for metadata extraction (default: "gpt-4-turbo")
-
-#### Service Configuration
-- `HOST` - Service host (default: "0.0.0.0")
-- `PORT` - Service port (default: 8000)
-- `LOG_LEVEL` - Logging level (default: "INFO")
-- `LOG_FILE` - Log file path (optional)
-
-### Environment Validation
-
-The service includes comprehensive environment validation:
-
-```bash
-# Validate current environment
-python config.py
-
-# Create example configuration
-python -c "from config import create_example_env_file; create_example_env_file()"
+Response:
+{
+  "task_id": "batch_process_1234567890",
+  "message": "Processing pending batches in background"
+}
 ```
 
-## 🔍 Monitoring and Observability
+#### 6. **Batch Status**
+```http
+GET /batch/status
 
-### Built-in Monitoring
-
-The service provides comprehensive monitoring capabilities:
-
-#### Health Endpoints
-- `/health` - Service and database health
-- `/stats` - Processing statistics
-- `/config` - Current configuration
-- `/ingest/tasks` - Active task list
-
-#### Metrics Tracked
-- Files processed/failed counts
-- Processing times and throughput
-- Database connection status
-- Memory and resource usage
-- Error rates by type
-
-#### Logging
-
-Structured logging with multiple levels:
-```python
-# Configure logging level
-export LOG_LEVEL=DEBUG  # DEBUG, INFO, WARNING, ERROR
-
-# Configure log file
-export LOG_FILE=./logs/ingestion.log
+Response:
+{
+  "batch_jobs": {
+    "pending": 3,
+    "completed": 12,
+    "failed": 1
+  },
+  "pending_embeddings": 450,
+  "batch_api_enabled": true,
+  "batch_threshold": 100,
+  "estimated_savings_usd": 125.50
+}
 ```
 
-Log format includes:
-- Timestamp and log level
-- Component identification
-- Request correlation IDs
-- Processing metrics
-- Error context and stack traces
+#### 7. **List Batch Jobs**
+```http
+GET /batch/jobs?status=pending&limit=10
 
-### Production Monitoring
-
-For production deployments, integrate with:
-
-#### Application Monitoring
-- **Prometheus**: Metrics exposition at `/metrics`
-- **Grafana**: Dashboard for visualization
-- **AlertManager**: Automated alerting
-
-#### Log Aggregation
-- **ELK Stack**: Elasticsearch, Logstash, Kibana
-- **Splunk**: Enterprise log management
-- **Cloud Logging**: AWS CloudWatch, Google Cloud Logging
-
-#### Health Checks
-```bash
-# Docker health check
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-
-# Kubernetes liveness probe
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8000
-  initialDelaySeconds: 30
-  periodSeconds: 10
+Response:
+{
+  "total": 3,
+  "jobs": [
+    {
+      "batch_id": "batch_abc123",
+      "document_id": "doc_456",
+      "status": "pending",
+      "chunk_count": 234,
+      "created_at": "2024-01-20T10:30:00Z"
+    }
+  ]
+}
 ```
 
-## 🧪 Testing
+### Monitoring Endpoints
 
-### Development Testing
+#### 8. **Health Check**
+```http
+GET /health
 
-```bash
-# Install test dependencies
-pip install pytest pytest-asyncio httpx
-
-# Run tests
-pytest tests/ -v
-
-# Run with coverage
-pytest tests/ --cov=. --cov-report=html
+Response:
+{
+  "status": "healthy",
+  "service": "ingestion",
+  "database": "connected",
+  "stats": {
+    "total_documents": 15420,
+    "total_chunks": 234561
+  },
+  "timestamp": "2024-01-20T10:30:00Z",
+  "batch_api": {
+    "enabled": true,
+    "threshold": 100,
+    "auto_processing": true
+  }
+}
 ```
 
-### Integration Testing
+#### 9. **Service Statistics**
+```http
+GET /stats
 
-```bash
-# Test with sample files
-curl -X POST "http://localhost:8000/ingest/files" \
-  -H "Content-Type: application/json" \
-  -d '{"file_paths": ["./test_files/sample.pdf"]}'
-
-# Check task status
-curl "http://localhost:8000/ingest/status/ingest_files_0"
-
-# Verify database storage
-curl "http://localhost:8000/stats"
+Response:
+{
+  "database_stats": {
+    "total_documents": 15420,
+    "total_chunks": 234561,
+    "unique_files": 892
+  },
+  "task_stats": {
+    "total_tasks": 156,
+    "completed_tasks": 150,
+    "failed_tasks": 3,
+    "processing_tasks": 2,
+    "pending_tasks": 1
+  },
+  "service_info": {
+    "supported_file_types": ["pdf", "docx", "txt", ...],
+    "processor_info": {...}
+  },
+  "batch_api_stats": {
+    "batch_jobs": {"pending": 2, "completed": 45},
+    "embeddings_via_regular_api": 5234,
+    "embeddings_via_batch_api": 12456,
+    "estimated_savings_usd": 125.50
+  }
+}
 ```
 
-### Load Testing
+## 🚀 Deployment Methods
 
+### Method 1: Docker Compose (Recommended)
+
+#### Basic Deployment
 ```bash
-# Install load testing tools
-pip install locust
+# 1. Clone repository
+git clone <repository-url>
+cd ingestion_service/
 
-# Run load test
-locust -f tests/load_test.py --host=http://localhost:8000
+# 2. Create .env file
+cp .env.example .env
+# Edit .env with your API keys
+
+# 3. Deploy with Docker Compose
+docker-compose up -d
+
+# 4. Check health
+curl http://localhost:8000/health
 ```
 
-## 🚨 Troubleshooting
-
-### Common Issues
-
-#### 1. Service Won't Start
+#### Production Deployment with Monitoring
 ```bash
-# Check configuration
-python config.py
+# Deploy with Prometheus and Grafana
+docker-compose --profile monitoring up -d
 
-# Validate environment
-python -c "from config import validate_environment; print(validate_environment())"
-
-# Check dependencies
-pip list | grep -E "(llama|supabase|openai)"
+# Services will be available at:
+# - Ingestion Service: http://localhost:8000
+# - Prometheus: http://localhost:9090
+# - Grafana: http://localhost:3000
 ```
 
-#### 2. Database Connection Issues
-```bash
-# Test Supabase connection
-python -c "
-from supabase import create_client
-import os
-client = create_client(os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_SERVICE_KEY'))
-print(client.table('rag_documents').select('count').execute())
-"
+#### Docker Compose Configuration
+```yaml
+version: '3.8'
+
+services:
+  ingestion-service:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - USE_BATCH_API=true
+      - BATCH_API_THRESHOLD=100
+      - AUTO_PROCESS_BATCHES=true
+    volumes:
+      - ingestion_uploads:/app/uploads
+      - ingestion_logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+    restart: unless-stopped
 ```
 
-#### 3. Processing Failures
+### Method 2: Standalone Python
+
+#### Development Setup
 ```bash
-# Check logs
-tail -f logs/ingestion.log
+# 1. Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Verify file permissions
-ls -la /path/to/files/
+# 2. Install dependencies
+pip install -r requirements.txt
 
-# Test with smaller files
-echo "test content" > test.txt
-curl -X POST "http://localhost:8000/ingest/files" \
-  -H "Content-Type: application/json" \
-  -d '{"file_paths": ["./test.txt"]}'
+# 3. Configure environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# 4. Run service
+python main.py
 ```
 
-#### 4. Memory/Performance Issues
+#### Production Setup with systemd (Linux)
 ```bash
-# Monitor resource usage
-docker stats ingestion-service
+# 1. Create service file
+sudo nano /etc/systemd/system/ingestion-service.service
 
-# Adjust configuration
-export MAX_CONCURRENT_FILES=2
-export BATCH_SIZE=50
-export MAX_FILE_SIZE_MB=50
+# 2. Add configuration:
+[Unit]
+Description=LlamaIndex Ingestion Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/opt/ingestion_service
+Environment="PATH=/opt/ingestion_service/venv/bin"
+ExecStart=/opt/ingestion_service/venv/bin/python main.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+
+# 3. Enable and start
+sudo systemctl enable ingestion-service
+sudo systemctl start ingestion-service
 ```
 
-### Error Recovery
+### Method 3: Kubernetes Deployment
 
-The service includes automatic error recovery:
-- **Circuit Breakers**: Prevent cascade failures
-- **Retry Logic**: Exponential backoff for transient errors
-- **Graceful Degradation**: Continue processing other files when one fails
-- **Task Isolation**: Individual file failures don't affect batch processing
-
-## 🔧 Advanced Configuration
-
-### Performance Tuning
-
-#### For High Throughput
-```bash
-# Increase concurrency
-MAX_CONCURRENT_FILES=10
-BATCH_SIZE=200
-
-# Optimize chunking
-CHUNK_SIZE=2048
-ENABLE_SEMANTIC_CHUNKING=false
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestion-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ingestion-service
+  template:
+    metadata:
+      labels:
+        app: ingestion-service
+    spec:
+      containers:
+      - name: ingestion-service
+        image: your-registry/ingestion-service:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: SUPABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: ingestion-secrets
+              key: supabase-url
+        - name: USE_BATCH_API
+          value: "true"
+        - name: AUTO_PROCESS_BATCHES
+          value: "true"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
 ```
 
-#### For Quality Focus
+## ⚙️ Configuration
+
+### Environment Variables
+
 ```bash
-# Enable all features
+# Required
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_KEY=your_service_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Batch API Configuration (New!)
+USE_BATCH_API=true              # Enable batch API for cost savings
+BATCH_API_THRESHOLD=100         # Use batch API when chunks >= 100
+BATCH_API_WAIT_TIMEOUT=300      # Max seconds to wait for small batches
+BATCH_CHECK_INTERVAL=300        # Check pending batches every 5 minutes
+AUTO_PROCESS_BATCHES=true       # Automatically process batch jobs
+PREFER_COST_SAVINGS=true        # Prefer batch API when possible
+MAX_REGULAR_API_BATCH=20        # Max embeddings per regular API call
+
+# Processing Configuration
+CHUNK_SIZE=1024
+CHUNK_OVERLAP=200
+MAX_FILE_SIZE_MB=100
+BATCH_SIZE=100
+MAX_CONCURRENT_FILES=5
+
+# Feature Toggles
 ENABLE_SEMANTIC_CHUNKING=true
 ENABLE_HIERARCHICAL_CHUNKING=true
 EXTRACT_METADATA=true
 ENABLE_OCR=true
 ENABLE_SPEECH_TO_TEXT=true
+
+# Model Configuration
+EMBEDDING_MODEL=text-embedding-3-large
+LLM_MODEL=gpt-4-turbo
+
+# Service Configuration
+HOST=0.0.0.0
+PORT=8000
+LOG_LEVEL=INFO
 ```
 
-#### For Resource Constraints
+### Cost Optimization Settings
+
+| Setting | Impact | Recommendation |
+|---------|--------|----------------|
+| `USE_BATCH_API=true` | 50% cost reduction on embeddings | Enable for production |
+| `BATCH_API_THRESHOLD=100` | Minimum chunks for batch API | Lower for more savings |
+| `AUTO_PROCESS_BATCHES=true` | Automatic batch processing | Enable for convenience |
+| `MAX_REGULAR_API_BATCH=20` | Embeddings per API call | Increase for speed |
+
+## 📊 Monitoring and Observability
+
+### Built-in Monitoring
+
+#### 1. **Metrics Dashboard**
+Access real-time metrics at `/stats`:
+- Processing statistics (files, chunks, time)
+- Database statistics (documents, storage)
+- Batch API usage and cost savings
+- Task queue status
+
+#### 2. **Health Monitoring**
 ```bash
-# Reduce resource usage
-MAX_CONCURRENT_FILES=2
-BATCH_SIZE=25
-MAX_FILE_SIZE_MB=25
-ENABLE_OCR=false
-ENABLE_SPEECH_TO_TEXT=false
+# Simple health check
+curl http://localhost:8000/health
+
+# Detailed statistics
+curl http://localhost:8000/stats | jq
 ```
 
-### Custom Processing
-
-#### File Type Extensions
+#### 3. **Batch Job Monitoring**
 ```bash
-# Add custom file types
-SUPPORTED_EXTENSIONS=pdf,docx,txt,md,custom_ext
+# Check batch status
+curl http://localhost:8000/batch/status
+
+# List pending jobs
+curl "http://localhost:8000/batch/jobs?status=pending"
 ```
 
-#### Custom Processors
+### Prometheus Integration
+
+```yaml
+# prometheus.yml
+scrape_configs:
+  - job_name: 'ingestion-service'
+    static_configs:
+      - targets: ['ingestion-service:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 5s
+```
+
+### Logging
+
+#### Structured Logs
+```json
+{
+  "timestamp": "2024-01-20T10:30:45.123Z",
+  "level": "INFO",
+  "service": "ingestion",
+  "task_id": "ingest_files_123",
+  "event": "file_processed",
+  "file": "/path/to/document.pdf",
+  "chunks": 45,
+  "embedding_method": "batch",
+  "processing_time": 2.34
+}
+```
+
+#### Log Aggregation
+- **ELK Stack**: Ship logs to Elasticsearch
+- **CloudWatch**: AWS native logging
+- **Datadog**: APM and log correlation
+
+### Alerting
+
+```yaml
+# Example Prometheus alerts
+groups:
+- name: ingestion_alerts
+  rules:
+  - alert: HighFailureRate
+    expr: rate(ingestion_failures_total[5m]) > 0.1
+    for: 5m
+    annotations:
+      summary: "High ingestion failure rate"
+      
+  - alert: BatchJobBacklog
+    expr: ingestion_batch_jobs_pending > 100
+    for: 30m
+    annotations:
+      summary: "Large batch job backlog"
+```
+
+## 🔧 Extension and Customization
+
+### Adding New File Types
+
+#### 1. Create Custom Processor
 ```python
-# Extend multimodal_processor.py
-class CustomProcessor(MultiModalFileProcessor):
-    def _process_custom_format(self, file_path: str) -> List[Document]:
-        # Custom processing logic
+# processors/custom_processor.py
+async def _process_custom_format(self, file_path: str) -> List[Document]:
+    """Process custom file format"""
+    # Your processing logic
+    content = extract_content_from_custom_format(file_path)
+    return [Document(text=content, metadata={...})]
+
+# Register in multimodal_processor.py
+self.processors['custom'] = self._process_custom_format
+```
+
+#### 2. Update Configuration
+```python
+# config.py
+supported_extensions = [..., 'custom']
+```
+
+### Custom Chunking Strategies
+
+```python
+# processors/custom_chunker.py
+class DomainSpecificChunker(ContextAwareChunker):
+    def _chunk_domain_content(self, document: Document) -> List[BaseNode]:
+        """Custom chunking for domain-specific content"""
+        # Implement domain logic
         pass
 ```
 
-### Security Configuration
+### Metadata Enhancement
 
-#### Production Security
-```bash
-# Disable debug features
-DEBUG_MODE=false
-
-# Restrict file types
-SUPPORTED_EXTENSIONS=pdf,docx,txt,md
-
-# Limit file sizes
-MAX_FILE_SIZE_MB=50
-
-# Enable audit logging
-LOG_LEVEL=INFO
-LOG_FILE=./logs/audit.log
+```python
+# Add custom metadata extractors
+class CustomMetadataExtractor(MetadataExtractor):
+    async def extract_domain_metadata(self, chunk: Document) -> Dict:
+        """Extract domain-specific metadata"""
+        return {
+            'custom_field': analyze_content(chunk.text),
+            'domain_score': calculate_relevance(chunk.text)
+        }
 ```
 
-## 📖 Development Guide
+### Webhook Integration
 
-### Adding New Features
+```python
+# Add webhook notifications
+@app.post("/ingest/files")
+async def ingest_with_webhook(request: IngestRequest):
+    result = await ingest_files(request.file_paths)
+    
+    # Notify webhook
+    if request.webhook_url:
+        await notify_webhook(request.webhook_url, result)
+    
+    return result
+```
 
-#### 1. New File Type Support
-1. Add processor in `multimodal_processor.py`
-2. Update `supported_extensions` in config
-3. Add tests for new file type
-4. Update documentation
+### Custom Storage Backends
 
-#### 2. New Chunking Strategy
-1. Extend `ContextAwareChunker`
-2. Add configuration options
-3. Test with various document types
-4. Document strategy benefits
+```python
+# Implement alternative storage
+class S3StorageBackend:
+    async def store_chunk(self, chunk_data: Dict):
+        """Store in S3 instead of Supabase"""
+        # Implementation
+        pass
+```
 
-#### 3. New Metadata Extractors
-1. Extend `MetadataExtractor`
-2. Configure extraction parameters
-3. Test extraction quality
-4. Update response models
+## 🎯 Best Practices
 
-### Code Style and Standards
+### Performance Optimization
 
-- **Type Hints**: Use comprehensive type annotations
-- **Async/Await**: Proper async programming patterns
-- **Error Handling**: Comprehensive exception handling
-- **Logging**: Structured logging throughout
-- **Testing**: Unit and integration test coverage
-- **Documentation**: Inline docs and README updates
+1. **Batch Processing**
+   - Use larger batch sizes for better throughput
+   - Enable batch API for documents with many chunks
+   - Process similar file types together
 
-## 🤝 Contributing
+2. **Resource Management**
+   - Set appropriate concurrency limits
+   - Monitor memory usage for large files
+   - Use streaming for very large documents
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow code standards and add tests
-4. Update documentation
-5. Submit pull request
+3. **Cost Optimization**
+   - Enable batch API for all production workloads
+   - Process files during off-peak hours
+   - Monitor embedding costs in dashboard
 
-## 📄 License
+### Production Checklist
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+- [ ] Configure all required environment variables
+- [ ] Set up database with proper indexes
+- [ ] Enable batch API for cost savings
+- [ ] Configure monitoring and alerting
+- [ ] Set up log aggregation
+- [ ] Implement backup strategy
+- [ ] Test error recovery mechanisms
+- [ ] Document custom configurations
 
----
+## 📝 Troubleshooting
 
-## 🆘 Support
+### Common Issues
 
-For support and questions:
+| Issue | Solution |
+|-------|----------|
+| Batch jobs not processing | Check `AUTO_PROCESS_BATCHES=true` and run `/batch/process-pending` |
+| High memory usage | Reduce `MAX_CONCURRENT_FILES` and chunk sizes |
+| Slow processing | Enable batch API, increase concurrency |
+| Failed embeddings | Check OpenAI API limits and quotas |
 
-1. **Check Documentation**: Review this README and inline documentation
-2. **Check Logs**: Enable DEBUG logging for detailed information
-3. **Validate Environment**: Run configuration validation
-4. **Test Components**: Use individual endpoint testing
-5. **Community Support**: Submit issues with detailed reproduction steps
+### Debug Mode
 
-The LlamaIndex Ingestion Service is designed to be a robust, independent, and scalable solution for document processing in RAG systems. Its standalone architecture allows for flexible deployment while maintaining high performance and reliability.
+```bash
+# Enable debug logging
+LOG_LEVEL=DEBUG python main.py
+
+# Check specific task
+curl http://localhost:8000/ingest/status/task_123
+```
