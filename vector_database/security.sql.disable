@@ -1,0 +1,372 @@
+-- Security policies for Supabase Vector Database
+-- Optional: Run this if you need multi-tenant isolation or access control
+-- Note: Adjust these policies based on your specific security requirements
+
+-- =============================================================================
+-- ROW LEVEL SECURITY (RLS) SETUP
+-- =============================================================================
+
+-- Enable RLS on the main documents table
+ALTER TABLE rag_documents ENABLE ROW LEVEL SECURITY;
+
+-- Enable RLS on the stats table
+ALTER TABLE bm25_stats ENABLE ROW LEVEL SECURITY;
+
+-- =============================================================================
+-- BASIC ACCESS POLICIES
+-- These provide a foundation - customize based on your needs
+-- =============================================================================
+
+-- Policy: Service role has full access (for backend services)
+CREATE POLICY "Service role full access to documents" ON rag_documents
+    FOR ALL 
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+CREATE POLICY "Service role full access to stats" ON bm25_stats
+    FOR ALL 
+    TO service_role
+    USING (true)
+    WITH CHECK (true);
+
+-- Policy: Authenticated users can read all documents (adjust as needed)
+CREATE POLICY "Authenticated users can read documents" ON rag_documents
+    FOR SELECT 
+    TO authenticated
+    USING (true);
+
+-- Policy: Authenticated users can read stats
+CREATE POLICY "Authenticated users can read stats" ON bm25_stats
+    FOR SELECT 
+    TO authenticated
+    USING (true);
+
+-- =============================================================================
+-- MULTI-TENANT POLICIES (Optional)
+-- Uncomment and modify these if you need tenant isolation
+-- =============================================================================
+
+-- -- Add user_id column for tenant isolation
+-- ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+-- CREATE INDEX IF NOT EXISTS idx_rag_documents_user_id ON rag_documents(user_id);
+
+-- -- Policy: Users can only see their own documents
+-- CREATE POLICY "Users see own documents" ON rag_documents
+--     FOR SELECT 
+--     TO authenticated
+--     USING (auth.uid() = user_id);
+
+-- -- Policy: Users can insert their own documents
+-- CREATE POLICY "Users insert own documents" ON rag_documents
+--     FOR INSERT 
+--     TO authenticated
+--     WITH CHECK (auth.uid() = user_id);
+
+-- -- Policy: Users can update their own documents
+-- CREATE POLICY "Users update own documents" ON rag_documents
+--     FOR UPDATE 
+--     TO authenticated
+--     USING (auth.uid() = user_id)
+--     WITH CHECK (auth.uid() = user_id);
+
+-- -- Policy: Users can delete their own documents
+-- CREATE POLICY "Users delete own documents" ON rag_documents
+--     FOR DELETE 
+--     TO authenticated
+--     USING (auth.uid() = user_id);
+
+-- =============================================================================
+-- ORGANIZATION-BASED POLICIES (Optional)
+-- For team/organization based access control
+-- =============================================================================
+
+-- -- Add organization_id column for org-based isolation
+-- ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS organization_id UUID;
+-- CREATE INDEX IF NOT EXISTS idx_rag_documents_organization_id ON rag_documents(organization_id);
+
+-- -- Create organizations table
+-- CREATE TABLE IF NOT EXISTS organizations (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     name TEXT NOT NULL,
+--     created_at TIMESTAMPTZ DEFAULT NOW(),
+--     updated_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+
+-- -- Create organization members table
+-- CREATE TABLE IF NOT EXISTS organization_members (
+--     organization_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+--     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+--     role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'member', 'viewer')),
+--     created_at TIMESTAMPTZ DEFAULT NOW(),
+--     PRIMARY KEY (organization_id, user_id)
+-- );
+
+-- -- Function to check organization membership
+-- CREATE OR REPLACE FUNCTION is_organization_member(org_id UUID, user_id UUID)
+-- RETURNS BOOLEAN AS $$
+-- BEGIN
+--     RETURN EXISTS (
+--         SELECT 1 FROM organization_members 
+--         WHERE organization_id = org_id AND user_id = user_id
+--     );
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -- Policy: Organization members can see org documents
+-- CREATE POLICY "Org members see org documents" ON rag_documents
+--     FOR SELECT 
+--     TO authenticated
+--     USING (is_organization_member(organization_id, auth.uid()));
+
+-- =============================================================================
+-- PUBLIC/PRIVATE DOCUMENT POLICIES (Optional)
+-- For documents with visibility settings
+-- =============================================================================
+
+-- -- Add visibility column
+-- ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS visibility TEXT 
+--     DEFAULT 'private' CHECK (visibility IN ('public', 'private', 'shared'));
+
+-- -- Policy: Anyone can see public documents
+-- CREATE POLICY "Anyone can see public documents" ON rag_documents
+--     FOR SELECT 
+--     TO authenticated
+--     USING (visibility = 'public');
+
+-- -- Policy: Document owners can see their private documents
+-- CREATE POLICY "Owners see private documents" ON rag_documents
+--     FOR SELECT 
+--     TO authenticated
+--     USING (visibility = 'private' AND auth.uid() = user_id);
+
+-- =============================================================================
+-- API KEY ACCESS POLICIES (Optional)
+-- For service-to-service authentication
+-- =============================================================================
+
+-- -- Create API keys table
+-- CREATE TABLE IF NOT EXISTS api_keys (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     key_hash TEXT NOT NULL UNIQUE,
+--     name TEXT NOT NULL,
+--     permissions TEXT[] DEFAULT ARRAY['read'],
+--     user_id UUID REFERENCES auth.users(id),
+--     organization_id UUID,
+--     created_at TIMESTAMPTZ DEFAULT NOW(),
+--     last_used_at TIMESTAMPTZ,
+--     expires_at TIMESTAMPTZ,
+--     is_active BOOLEAN DEFAULT true
+-- );
+
+-- -- Function to validate API key
+-- CREATE OR REPLACE FUNCTION validate_api_key(api_key TEXT)
+-- RETURNS TABLE (
+--     key_id UUID,
+--     permissions TEXT[],
+--     user_id UUID,
+--     organization_id UUID
+-- ) AS $$
+-- BEGIN
+--     RETURN QUERY
+--     SELECT 
+--         id,
+--         permissions,
+--         user_id,
+--         organization_id
+--     FROM api_keys
+--     WHERE key_hash = crypt(api_key, key_hash)
+--         AND is_active = true
+--         AND (expires_at IS NULL OR expires_at > NOW());
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================================================
+-- SEARCH FUNCTION SECURITY
+-- Secure the search functions based on RLS policies
+-- =============================================================================
+
+-- Create secure versions of search functions that respect RLS
+CREATE OR REPLACE FUNCTION secure_hybrid_search(
+    query_embedding VECTOR(3072),
+    query_text TEXT,
+    similarity_threshold FLOAT DEFAULT 0.7,
+    limit_count INTEGER DEFAULT 10,
+    file_types TEXT[] DEFAULT NULL,
+    date_filter TIMESTAMPTZ DEFAULT NULL,
+    vector_weight FLOAT DEFAULT 0.7,
+    bm25_weight FLOAT DEFAULT 0.3
+)
+RETURNS TABLE (
+    id UUID,
+    content TEXT,
+    embedding VECTOR(3072),
+    similarity_score FLOAT,
+    bm25_score FLOAT,
+    combined_score FLOAT,
+    file_name TEXT,
+    file_type TEXT,
+    file_path TEXT,
+    chunk_index INTEGER,
+    document_id UUID,
+    title TEXT,
+    summary TEXT,
+    keywords TEXT[],
+    entities TEXT[],
+    created_at TIMESTAMPTZ,
+    updated_at TIMESTAMPTZ
+) AS $$
+BEGIN
+    -- This function will automatically respect RLS policies
+    RETURN QUERY
+    SELECT * FROM hybrid_search(
+        query_embedding,
+        query_text,
+        similarity_threshold,
+        limit_count,
+        file_types,
+        date_filter,
+        vector_weight,
+        bm25_weight
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION secure_hybrid_search TO authenticated;
+
+-- =============================================================================
+-- AUDIT LOGGING (Optional)
+-- Track access and modifications for compliance
+-- =============================================================================
+
+-- -- Create audit log table
+-- CREATE TABLE IF NOT EXISTS audit_logs (
+--     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+--     table_name TEXT NOT NULL,
+--     operation TEXT NOT NULL CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE', 'SELECT')),
+--     user_id UUID,
+--     row_id UUID,
+--     old_data JSONB,
+--     new_data JSONB,
+--     query_text TEXT,
+--     ip_address INET,
+--     user_agent TEXT,
+--     created_at TIMESTAMPTZ DEFAULT NOW()
+-- );
+
+-- -- Create audit trigger function
+-- CREATE OR REPLACE FUNCTION audit_trigger_function()
+-- RETURNS TRIGGER AS $$
+-- BEGIN
+--     INSERT INTO audit_logs (
+--         table_name,
+--         operation,
+--         user_id,
+--         row_id,
+--         old_data,
+--         new_data
+--     ) VALUES (
+--         TG_TABLE_NAME,
+--         TG_OP,
+--         auth.uid(),
+--         COALESCE(NEW.id, OLD.id),
+--         CASE WHEN TG_OP IN ('UPDATE', 'DELETE') THEN row_to_json(OLD) ELSE NULL END,
+--         CASE WHEN TG_OP IN ('INSERT', 'UPDATE') THEN row_to_json(NEW) ELSE NULL END
+--     );
+--     
+--     RETURN COALESCE(NEW, OLD);
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- -- Create audit triggers (uncomment to enable)
+-- -- CREATE TRIGGER audit_rag_documents
+-- -- AFTER INSERT OR UPDATE OR DELETE ON rag_documents
+-- -- FOR EACH ROW EXECUTE FUNCTION audit_trigger_function();
+
+-- =============================================================================
+-- RATE LIMITING (Optional)
+-- Prevent API abuse
+-- =============================================================================
+
+-- -- Create rate limit tracking table
+-- CREATE TABLE IF NOT EXISTS rate_limits (
+--     user_id UUID,
+--     endpoint TEXT,
+--     requests INTEGER DEFAULT 1,
+--     window_start TIMESTAMPTZ DEFAULT NOW(),
+--     PRIMARY KEY (user_id, endpoint, window_start)
+-- );
+
+-- -- Function to check rate limit
+-- CREATE OR REPLACE FUNCTION check_rate_limit(
+--     p_user_id UUID,
+--     p_endpoint TEXT,
+--     p_limit INTEGER DEFAULT 100,
+--     p_window_minutes INTEGER DEFAULT 1
+-- )
+-- RETURNS BOOLEAN AS $$
+-- DECLARE
+--     current_requests INTEGER;
+-- BEGIN
+--     -- Clean old entries
+--     DELETE FROM rate_limits 
+--     WHERE window_start < NOW() - INTERVAL '1 hour';
+--     
+--     -- Count requests in current window
+--     SELECT SUM(requests) INTO current_requests
+--     FROM rate_limits
+--     WHERE user_id = p_user_id 
+--         AND endpoint = p_endpoint
+--         AND window_start > NOW() - (p_window_minutes || ' minutes')::INTERVAL;
+--     
+--     IF current_requests >= p_limit THEN
+--         RETURN FALSE;
+--     END IF;
+--     
+--     -- Record this request
+--     INSERT INTO rate_limits (user_id, endpoint, requests, window_start)
+--     VALUES (p_user_id, p_endpoint, 1, NOW())
+--     ON CONFLICT (user_id, endpoint, window_start) 
+--     DO UPDATE SET requests = rate_limits.requests + 1;
+--     
+--     RETURN TRUE;
+-- END;
+-- $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================================================
+-- COLUMN-LEVEL SECURITY (Optional)
+-- Hide sensitive columns from certain users
+-- =============================================================================
+
+-- -- Create views with limited columns for different access levels
+-- CREATE OR REPLACE VIEW rag_documents_public AS
+-- SELECT 
+--     id,
+--     content,
+--     file_name,
+--     file_type,
+--     title,
+--     summary,
+--     keywords,
+--     created_at
+-- FROM rag_documents
+-- WHERE visibility = 'public';
+
+-- -- Grant access to the view
+-- GRANT SELECT ON rag_documents_public TO authenticated;
+
+-- =============================================================================
+-- SECURITY RECOMMENDATIONS
+-- =============================================================================
+
+-- 1. Always use parameterized queries to prevent SQL injection
+-- 2. Implement proper authentication before accessing the database
+-- 3. Use environment variables for sensitive configuration
+-- 4. Regularly rotate API keys and passwords
+-- 5. Monitor access logs for suspicious activity
+-- 6. Keep Supabase and dependencies updated
+-- 7. Use HTTPS for all connections
+-- 8. Implement proper error handling that doesn't leak sensitive info
+-- 9. Consider encrypting sensitive content at the application level
+-- 10. Regularly backup your data and test restoration procedures
