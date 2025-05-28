@@ -70,6 +70,14 @@ class IngestionConfig:
         'zip', 'tar', 'gz'  # Archives
     ])
     
+    # Batch API configuration
+    use_batch_api: bool = True  
+    batch_api_threshold: int = 100  # Use batch API for >= 100 chunks
+    batch_api_wait_timeout: int = 300  # Max seconds to wait for small batches
+    batch_check_interval: int = 300  # Check pending batches every 5 minutes
+    prefer_cost_savings: bool = True  # Prefer batch API when possible
+    max_regular_api_batch: int = 20  # Max embeddings per regular API call
+    
     def __post_init__(self):
         """Validate configuration after initialization"""
         self._validate_required_fields()
@@ -267,7 +275,15 @@ def get_config() -> IngestionConfig:
                  'jpg', 'jpeg', 'png', 'gif', 'bmp', 'tiff', 'mp3', 'wav', 'm4a', 'flac',
                  'py', 'js', 'java', 'cpp', 'c', 'cs', 'php', 'rb', 'go', 'sql',
                  'json', 'xml', 'yaml', 'yml', 'html', 'htm', 'css', 'zip', 'tar', 'gz']
-            )
+            ),
+            
+            # Batch API settings
+            use_batch_api=str_to_bool(os.getenv("USE_BATCH_API", "true")),
+            batch_api_threshold=int(os.getenv("BATCH_API_THRESHOLD", "100")),
+            batch_api_wait_timeout=int(os.getenv("BATCH_API_WAIT_TIMEOUT", "300")),
+            batch_check_interval=int(os.getenv("BATCH_CHECK_INTERVAL", "300")),
+            prefer_cost_savings=str_to_bool(os.getenv("PREFER_COST_SAVINGS", "true")),
+            max_regular_api_batch=int(os.getenv("MAX_REGULAR_API_BATCH", "20"))        
         )
         
         logger.info("Configuration loaded successfully from environment")
