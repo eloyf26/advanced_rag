@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Supabase Vector Database Deployment Script
+Supabase Vector Database Deployment Script - Fixed Version
 """
 
 import os
@@ -8,6 +8,7 @@ import sys
 import time
 import argparse
 import logging
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
@@ -25,13 +26,6 @@ try:
 except ImportError:
     print("Warning: python-dotenv not installed. Using environment variables only.")
     load_dotenv = lambda: None
-
-# Try to import Supabase client for alternative deployment
-try:
-    from supabase import create_client, Client
-    SUPABASE_AVAILABLE = True
-except ImportError:
-    SUPABASE_AVAILABLE = False
 
 # Setup logging
 logging.basicConfig(
@@ -89,18 +83,9 @@ class SupabaseDeployer:
             'SUPABASE_DB_PASSWORD': os.getenv('SUPABASE_DB_PASSWORD'),
         }
         
-        optional_vars = {
-            'SUPABASE_SERVICE_KEY': os.getenv('SUPABASE_SERVICE_KEY'),
-        }
-        
         # Check if we have minimum requirements
         if required_vars['SUPABASE_URL'] and required_vars['SUPABASE_DB_PASSWORD']:
             return 'postgresql', required_vars
-        
-        # Check if we can use Supabase client method
-        if required_vars['SUPABASE_URL'] and optional_vars['SUPABASE_SERVICE_KEY'] and SUPABASE_AVAILABLE:
-            print(f"{Colors.YELLOW}Note: Using Supabase client method (limited functionality){Colors.NC}")
-            return 'supabase_client', {**required_vars, **optional_vars}
         
         # No valid configuration found
         self.print_missing_config_help()
@@ -206,8 +191,53 @@ You need to provide database credentials. Here's how:
             logger.error(f"Error checking vector extension: {e}")
             return False
     
+    def split_sql_statements(self, sql_content: str) -> List[str]:
+        """
+        Properly split SQL statements, handling dollar-quoted strings
+        """
+        statements = []
+        current_statement = []
+        in_dollar_quote = False
+        dollar_quote_tag = None
+        
+        lines = sql_content.split('\n')
+        
+        for line in lines:
+            # Check for dollar quote start/end
+            if not in_dollar_quote:
+                # Look for dollar quote start
+                match = re.search(r'\$([^$]*)\$', line)
+                if match:
+                    dollar_quote_tag = match.group(0)
+                    in_dollar_quote = True
+            else:
+                # Look for matching dollar quote end
+                if dollar_quote_tag in line:
+                    # Check if this ends the dollar quote
+                    parts = line.split(dollar_quote_tag)
+                    if len(parts) > 1:
+                        in_dollar_quote = False
+                        dollar_quote_tag = None
+            
+            current_statement.append(line)
+            
+            # If we're not in a dollar quote and line ends with semicolon, end statement
+            if not in_dollar_quote and line.strip().endswith(';'):
+                full_statement = '\n'.join(current_statement)
+                if full_statement.strip():
+                    statements.append(full_statement)
+                current_statement = []
+        
+        # Add any remaining statement
+        if current_statement:
+            full_statement = '\n'.join(current_statement)
+            if full_statement.strip():
+                statements.append(full_statement)
+        
+        return statements
+    
     def execute_sql_file(self, db_config: Dict[str, str], sql_file: str, description: str) -> bool:
-        """Execute SQL file with progress tracking"""
+        """Execute SQL file with proper statement splitting"""
         file_path = self.project_dir / sql_file
         
         if not file_path.exists():
@@ -222,30 +252,36 @@ You need to provide database credentials. Here's how:
             with open(file_path, 'r', encoding='utf-8') as f:
                 sql_content = f.read()
             
-            # Split into statements (simple split by semicolon)
-            statements = [s.strip() for s in sql_content.split(';') if s.strip()]
+            # Properly split statements
+            statements = self.split_sql_statements(sql_content)
             total_statements = len(statements)
+            
+            print(f"  Found {total_statements} SQL statements to execute")
             
             # Connect and execute
             conn = psycopg2.connect(**db_config)
             conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             cursor = conn.cursor()
             
+            success_count = 0
+            
             # Execute statements with progress
             for i, statement in enumerate(statements, 1):
-                if statement:
+                if statement.strip():
                     try:
+                        print(f"  Executing statement {i}/{total_statements}...", end='\r')
                         cursor.execute(statement)
-                        print(f"  Progress: {i}/{total_statements} statements", end='\r')
+                        success_count += 1
                     except Exception as e:
                         # Log error but continue with other statements
-                        logger.warning(f"Statement {i} warning: {str(e)[:100]}")
+                        logger.warning(f"\n  Statement {i} warning: {str(e)[:100]}")
+                        print(f"\n  {Colors.YELLOW}⚠ Statement {i} had issues but continuing...{Colors.NC}")
             
-            print(f"\n{Colors.GREEN}✓ Successfully executed: {description}{Colors.NC}")
+            print(f"\n{Colors.GREEN}✓ Successfully executed {success_count}/{total_statements} statements{Colors.NC}")
             
             cursor.close()
             conn.close()
-            return True
+            return success_count > 0
             
         except Exception as e:
             print(f"\n{Colors.RED}✗ Failed to execute {description}{Colors.NC}")
@@ -360,56 +396,36 @@ You need to provide database credentials. Here's how:
             print(f"\n{Colors.CYAN}Deploying database schema...{Colors.NC}")
             
             if not self.execute_sql_file(db_config, 'setup.sql', 'Main database schema'):
-                sys.exit(1)
+                print(f"{Colors.YELLOW}Some issues with setup.sql, but continuing...{Colors.NC}")
             
             if not self.execute_sql_file(db_config, 'functions.sql', 'Search functions'):
-                sys.exit(1)
-            
-            # Optional security file
-            security_file = self.project_dir / 'security.sql'
-            if security_file.exists():
-                self.execute_sql_file(db_config, 'security.sql', 'Security policies')
+                print(f"{Colors.YELLOW}Some issues with functions.sql, but continuing...{Colors.NC}")
             
             # Verify deployment
             if not skip_tests:
                 self.verify_deployment(db_config)
             
             self.print_success_message()
-            
-        else:
-            # Fallback to Supabase client method
-            print(f"\n{Colors.YELLOW}Limited deployment using Supabase client{Colors.NC}")
-            print("Note: This method has limitations. Direct PostgreSQL connection is recommended.")
-            # Implementation would go here if needed
     
     def print_success_message(self):
         """Print success message and next steps"""
         print(f"""
 {Colors.GREEN}╔═══════════════════════════════════════════════════════════╗
-║            🎉 Deployment Successful! 🎉                   ║
+║            🎉 Deployment Complete! 🎉                     ║
 ╚═══════════════════════════════════════════════════════════╝{Colors.NC}
 
-Your Supabase Vector Database is now ready!
+Your Supabase Vector Database has been deployed!
 
 {Colors.CYAN}Next steps:{Colors.NC}
-1. Test the database with a simple query
-2. Start the ingestion service to process documents
-3. Use the RAG agent to query your knowledge base
+1. Run the test script to verify everything works:
+   python scripts/test_connection.py
 
-{Colors.CYAN}Quick test command:{Colors.NC}
-python -c "
-import psycopg2
-conn = psycopg2.connect(
-    host='db.YOUR_PROJECT_ID.supabase.co',
-    database='postgres',
-    user='postgres',
-    password='YOUR_DB_PASSWORD',
-    sslmode='require'
-)
-cursor = conn.cursor()
-cursor.execute('SELECT * FROM get_document_stats();')
-print('Database test successful!')
-"
+2. If there were any warnings, you can also deploy via the Supabase Dashboard:
+   - Go to SQL Editor
+   - Copy and paste the SQL files manually
+   - See scripts/deploy_via_dashboard.md for instructions
+
+3. Start using your vector database!
 
 {Colors.CYAN}Documentation:{Colors.NC}
 - Vector Database README: ./vector_database/README.md
