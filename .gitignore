@@ -5,6 +5,7 @@ ingestion_service/.env
 ingestion_service/venv
 ingestion_service/__pycache__
 ingestion_service/processors/__pycache__
+ingestion_service/ingestion_service.log
 
 agentic_rag_agent/.env
 agentic_rag_agent/venv
