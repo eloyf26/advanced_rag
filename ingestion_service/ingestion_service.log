@@ -1,0 +1,155 @@
+2025-05-30 00:01:40,858 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:01:40,858 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:01:40,858 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:01:40,923 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:01:40,923 - main - ERROR - Environment validation failed:
+2025-05-30 00:01:40,923 - main - ERROR -   - Missing required environment variable: SUPABASE_URL
+2025-05-30 00:01:40,923 - main - ERROR -   - Missing required environment variable: SUPABASE_SERVICE_KEY
+2025-05-30 00:01:40,923 - main - ERROR -   - Missing required environment variable: OPENAI_API_KEY
+2025-05-30 00:01:40,923 - main - ERROR - Failed to initialize ingestion service: Invalid environment configuration. Check logs for details.
+2025-05-30 00:01:40,923 - main - INFO - Shutting down ingestion service
+2025-05-30 00:03:48,883 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:03:48,885 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:03:48,885 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:03:48,926 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:03:48,926 - main - ERROR - Environment validation failed:
+2025-05-30 00:03:48,926 - main - ERROR -   - Missing required environment variable: SUPABASE_URL
+2025-05-30 00:03:48,926 - main - ERROR -   - Missing required environment variable: SUPABASE_SERVICE_KEY
+2025-05-30 00:03:48,929 - main - ERROR -   - Missing required environment variable: OPENAI_API_KEY
+2025-05-30 00:03:48,929 - main - ERROR - Failed to initialize ingestion service: Invalid environment configuration. Check logs for details.
+2025-05-30 00:03:48,929 - main - INFO - Shutting down ingestion service
+2025-05-30 00:08:37,574 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:08:37,575 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:08:37,575 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:08:37,617 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:08:37,617 - main - ERROR - Environment validation failed:
+2025-05-30 00:08:37,618 - main - ERROR -   - Missing required environment variable: SUPABASE_URL
+2025-05-30 00:08:37,618 - main - ERROR -   - Missing required environment variable: SUPABASE_SERVICE_KEY
+2025-05-30 00:08:37,618 - main - ERROR -   - Missing required environment variable: OPENAI_API_KEY
+2025-05-30 00:08:37,618 - main - ERROR - Failed to initialize ingestion service: Invalid environment configuration. Check logs for details.
+2025-05-30 00:08:37,618 - main - INFO - Shutting down ingestion service
+2025-05-30 00:10:21,285 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:10:21,285 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:10:21,286 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:10:21,330 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:10:21,331 - main - ERROR - Environment validation failed:
+2025-05-30 00:10:21,331 - main - ERROR -   - Missing required environment variable: SUPABASE_URL
+2025-05-30 00:10:21,332 - main - ERROR -   - Missing required environment variable: SUPABASE_SERVICE_KEY
+2025-05-30 00:10:21,332 - main - ERROR -   - Missing required environment variable: OPENAI_API_KEY
+2025-05-30 00:10:21,332 - main - ERROR - Failed to initialize ingestion service: Invalid environment configuration. Check logs for details.
+2025-05-30 00:10:21,333 - main - INFO - Shutting down ingestion service
+2025-05-30 00:11:54,506 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:11:54,506 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:11:54,507 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:11:54,551 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:11:54,551 - main - ERROR - Environment validation failed:
+2025-05-30 00:11:54,551 - main - ERROR -   - Missing required environment variable: SUPABASE_URL
+2025-05-30 00:11:54,552 - main - ERROR -   - Missing required environment variable: SUPABASE_SERVICE_KEY
+2025-05-30 00:11:54,552 - main - ERROR -   - Missing required environment variable: OPENAI_API_KEY
+2025-05-30 00:11:54,552 - main - ERROR - Failed to initialize ingestion service: Invalid environment configuration. Check logs for details.
+2025-05-30 00:11:54,553 - main - INFO - Shutting down ingestion service
+2025-05-30 00:17:08,480 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:17:08,481 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:17:08,481 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:17:08,541 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:17:08,544 - main - INFO - Environment variables loaded from .env file
+2025-05-30 00:17:08,545 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 00:17:08,545 - config - INFO - Configuration validated successfully
+2025-05-30 00:17:08,545 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 00:17:08,944 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 00:17:09,223 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 00:17:09,225 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 00:17:09,389 - processors.ingestion_service - ERROR - Failed to initialize processors: No module named 'tree_sitter'
+2025-05-30 00:17:09,389 - main - ERROR - Failed to initialize ingestion service: No module named 'tree_sitter'
+2025-05-30 00:17:09,390 - main - INFO - Shutting down ingestion service
+2025-05-30 00:28:56,619 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:28:56,620 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:28:56,620 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:28:56,662 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:28:56,666 - main - INFO - Environment variables loaded from .env file
+2025-05-30 00:28:56,666 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 00:28:56,666 - config - INFO - Configuration validated successfully
+2025-05-30 00:28:56,667 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 00:28:57,015 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 00:28:57,299 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 00:28:57,301 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 00:28:57,489 - processors.ingestion_service - ERROR - Failed to initialize processors: Please install tree_sitter_language_pack to use CodeSplitter.Or pass in a parser object.
+2025-05-30 00:28:57,489 - main - ERROR - Failed to initialize ingestion service: Please install tree_sitter_language_pack to use CodeSplitter.Or pass in a parser object.
+2025-05-30 00:28:57,489 - main - INFO - Shutting down ingestion service
+2025-05-30 00:29:18,226 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:29:18,226 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:29:18,226 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:29:18,272 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:29:18,276 - main - INFO - Environment variables loaded from .env file
+2025-05-30 00:29:18,277 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 00:29:18,277 - config - INFO - Configuration validated successfully
+2025-05-30 00:29:18,277 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 00:29:18,628 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 00:29:18,906 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 00:29:18,908 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 00:29:19,071 - processors.ingestion_service - ERROR - Failed to initialize processors: Please install tree_sitter_language_pack to use CodeSplitter.Or pass in a parser object.
+2025-05-30 00:29:19,072 - main - ERROR - Failed to initialize ingestion service: Please install tree_sitter_language_pack to use CodeSplitter.Or pass in a parser object.
+2025-05-30 00:29:19,072 - main - INFO - Shutting down ingestion service
+2025-05-30 00:29:49,901 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:29:49,902 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:29:49,902 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:29:49,986 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:29:49,992 - main - INFO - Environment variables loaded from .env file
+2025-05-30 00:29:49,993 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 00:29:49,993 - config - INFO - Configuration validated successfully
+2025-05-30 00:29:49,993 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 00:29:50,483 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 00:29:50,845 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 00:29:50,847 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 00:29:51,249 - processors.context_aware_chunker - WARNING - Semantic splitter initialization failed: 1 validation error for SemanticSplitterNodeParser
+embed_model
+  Input should be a valid dictionary or instance of BaseEmbedding [type=model_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/model_type
+2025-05-30 00:29:51,249 - processors.context_aware_chunker - INFO - Context-aware chunker initialized
+2025-05-30 00:30:09,460 - huggingface_hub.file_download - WARNING - Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+2025-05-30 00:30:25,233 - huggingface_hub.file_download - WARNING - Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+2025-05-30 00:30:32,836 - processors.ingestion_service - ERROR - Failed to initialize processors: Please install extra dependencies that are required for the ImageCaptionReader: `pip install torch transformers sentencepiece Pillow`
+2025-05-30 00:30:32,836 - main - ERROR - Failed to initialize ingestion service: Please install extra dependencies that are required for the ImageCaptionReader: `pip install torch transformers sentencepiece Pillow`
+2025-05-30 00:30:32,836 - main - INFO - Shutting down ingestion service
+2025-05-30 00:32:15,518 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 00:32:15,519 - __main__ - INFO - Batch API enabled: false
+2025-05-30 00:32:15,519 - __main__ - INFO - Auto-process batches: false
+2025-05-30 00:32:15,571 - main - INFO - Starting Ingestion Service...
+2025-05-30 00:32:15,576 - main - INFO - Environment variables loaded from .env file
+2025-05-30 00:32:15,577 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 00:32:15,577 - config - INFO - Configuration validated successfully
+2025-05-30 00:32:15,577 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 00:32:15,974 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 00:32:16,281 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 00:32:16,282 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 00:32:16,494 - processors.context_aware_chunker - WARNING - Semantic splitter initialization failed: 1 validation error for SemanticSplitterNodeParser
+embed_model
+  Input should be a valid dictionary or instance of BaseEmbedding [type=model_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/model_type
+2025-05-30 00:32:16,495 - processors.context_aware_chunker - INFO - Context-aware chunker initialized
+2025-05-30 00:37:41,200 - easyocr.easyocr - WARNING - Neither CUDA nor MPS are available - defaulting to CPU. Note: This module is much faster with a GPU.
+2025-05-30 00:37:41,209 - easyocr.easyocr - WARNING - Downloading detection model, please wait. This may take several minutes depending upon your network connection.
+2025-05-30 00:37:43,796 - easyocr.easyocr - INFO - Download complete
+2025-05-30 00:37:43,797 - easyocr.easyocr - WARNING - Downloading recognition model, please wait. This may take several minutes depending upon your network connection.
+2025-05-30 00:37:44,840 - easyocr.easyocr - INFO - Download complete.
+2025-05-30 00:37:47,075 - processors.multimodal_processor - INFO - OCR model initialized
+2025-05-30 00:37:48,190 - processors.multimodal_processor - INFO - Whisper model initialized
+2025-05-30 00:37:48,191 - processors.ingestion_service - ERROR - Failed to initialize processors: 'MultiModalFileProcessor' object has no attribute '_process_docx'
+2025-05-30 00:37:48,191 - main - ERROR - Failed to initialize ingestion service: 'MultiModalFileProcessor' object has no attribute '_process_docx'
+2025-05-30 00:37:48,191 - main - INFO - Shutting down ingestion service
+2025-05-30 01:18:25,853 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 01:18:25,853 - __main__ - INFO - Batch API enabled: false
+2025-05-30 01:18:25,853 - __main__ - INFO - Auto-process batches: false
+2025-05-30 01:18:25,951 - main - INFO - Starting Ingestion Service...
+2025-05-30 01:18:25,959 - main - INFO - Environment variables loaded from .env file
+2025-05-30 01:18:25,959 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 01:18:25,959 - config - INFO - Configuration validated successfully
+2025-05-30 01:18:25,959 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 01:18:26,425 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 01:18:26,738 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 01:18:26,738 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 01:18:26,978 - processors.context_aware_chunker - WARNING - Semantic splitter initialization failed: 1 validation error for SemanticSplitterNodeParser
+embed_model
+  Input should be a valid dictionary or instance of BaseEmbedding [type=model_type, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.11/v/model_type
+2025-05-30 01:18:26,978 - processors.context_aware_chunker - INFO - Context-aware chunker initialized

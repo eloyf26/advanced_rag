@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, UploadFile, File, D
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 import uvicorn
 
 from config import get_config, IngestionConfig, validate_environment
@@ -159,6 +160,9 @@ async def lifespan(app: FastAPI):
     try:
         # Startup
         logger.info("Starting Ingestion Service...")
+        
+        load_dotenv()
+        logger.info("Environment variables loaded from .env file")
         
         # Validate environment first
         env_issues = validate_environment()

@@ -13,7 +13,7 @@ import statistics
 from llama_index.core import Document
 from llama_index.core.extractors import (
     TitleExtractor, KeywordExtractor, SummaryExtractor,
-    QuestionsAnsweredExtractor, EntityExtractor
+    QuestionsAnsweredExtractor
 )
 from llama_index.llms.openai import OpenAI
 
@@ -66,18 +66,6 @@ class MetadataExtractor:
                     questions=3  # Extract up to 3 questions
                 )
                 self.extractors.append(self.questions_extractor)
-                
-                # Entity extractor (if available)
-                try:
-                    self.entity_extractor = EntityExtractor(
-                        prediction_threshold=0.5,
-                        label_entities=False,
-                        device="cpu"
-                    )
-                    self.extractors.append(self.entity_extractor)
-                except Exception as e:
-                    logger.warning(f"Entity extractor not available: {e}")
-                    self.entity_extractor = None
                 
                 logger.info(f"Initialized {len(self.extractors)} metadata extractors")
                 
