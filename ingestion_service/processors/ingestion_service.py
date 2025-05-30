@@ -258,8 +258,8 @@ class SupabaseRAGIngestionService:
                 'file_name': file_path_obj.name,
                 'file_type': file_path_obj.suffix.lower().lstrip('.'),
                 'file_size': file_path_obj.stat().st_size,
-                'file_modified': datetime.fromtimestamp(file_path_obj.stat().st_mtime),
-                'processed_at': datetime.utcnow()
+                'file_modified': datetime.fromtimestamp(file_path_obj.stat().st_mtime).isoformat(), 
+                'processed_at': datetime.now().isoformat() 
             }
             
             # Step 3: Process each document
@@ -663,6 +663,16 @@ class SupabaseRAGIngestionService:
         # Calculate content hash for deduplication
         content_hash = hashlib.md5(chunk.text.encode('utf-8')).hexdigest()
         
+        # Convert datetime objects to ISO format strings
+        file_modified = chunk.metadata.get('file_modified')
+        if file_modified and hasattr(file_modified, 'isoformat'):
+            file_modified = file_modified.isoformat()
+        
+        processed_at = chunk.metadata.get('processed_at')
+        if processed_at and hasattr(processed_at, 'isoformat'):
+            processed_at = processed_at.isoformat()
+        
+        
         return {
             'content': chunk.text,
             'embedding': embedding,
@@ -672,14 +682,14 @@ class SupabaseRAGIngestionService:
             'file_name': chunk.metadata.get('file_name'),
             'file_type': chunk.metadata.get('file_type'),
             'file_size': chunk.metadata.get('file_size'),
-            'file_modified': chunk.metadata.get('file_modified'),
+            'file_modified': file_modified,
             'chunk_index': chunk_index,
             'total_chunks': total_chunks,
             'parent_node_id': chunk.metadata.get('parent_node_id'),
             'chunk_type': chunk.metadata.get('chunk_type', 'standard'),
             'word_count': chunk.metadata.get('word_count', len(chunk.text.split())),
             'char_count': chunk.metadata.get('char_count', len(chunk.text)),
-            'processed_at': chunk.metadata.get('processed_at'),
+            'processed_at': processed_at,
             'extraction_method': chunk.metadata.get('extraction_method', 'standard'),
             'title': chunk.metadata.get('title'),
             'summary': chunk.metadata.get('summary'),

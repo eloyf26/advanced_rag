@@ -1,0 +1,5 @@
+This is a text document. that is a test. 
+The example is a test.
+I use this in the ingestion service. 
+I want to see if it works.
+Note that there are multiple proccessors that are used to process the document, but this is a txt that is indented to be processed by the text proccessor.

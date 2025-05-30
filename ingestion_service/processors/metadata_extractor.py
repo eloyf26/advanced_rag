@@ -152,22 +152,25 @@ class MetadataExtractor:
             # Convert Document to BaseNode for extractors
             from llama_index.core.schema import TextNode
             
+            # Create a proper TextNode with metadata
             node = TextNode(
                 text=document.text,
-                metadata=document.metadata.copy()
+                metadata=document.metadata.copy() if hasattr(document, 'metadata') else {}
             )
             
             # Apply each extractor
             for extractor in self.extractors:
                 try:
                     nodes = await asyncio.to_thread(extractor.extract, [node])
-                    if nodes:
-                        node = nodes[0]  # Get the enhanced node
+                    if nodes and len(nodes) > 0:
+                        # Make sure we get the metadata from the result
+                        if hasattr(nodes[0], 'metadata'):
+                            node.metadata.update(nodes[0].metadata)
                 except Exception as e:
                     logger.warning(f"Extractor {type(extractor).__name__} failed: {e}")
                     continue
             
-            # Convert back to Document
+            # Convert back to Document with updated metadata
             enhanced_document = Document(
                 text=document.text,
                 metadata=node.metadata
@@ -178,7 +181,7 @@ class MetadataExtractor:
         except Exception as e:
             logger.error(f"Error applying LLM extractors: {e}")
             return document
-    
+        
     async def _add_fallback_metadata(self, document: Document) -> Document:
         """
         Add rule-based metadata extraction as fallback
