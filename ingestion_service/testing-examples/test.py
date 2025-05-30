@@ -382,7 +382,8 @@ def run_comprehensive_test():
     print("\n1️⃣ Testing text and markdown files...")
     files = [
         Path(TEST_FOLDER) / "sample.txt",
-        Path(TEST_FOLDER) / "readme.md"
+        Path(TEST_FOLDER) / "readme.md",
+        Path(TEST_FOLDER) / "cartaconsumo.pdf"
     ]
     # Convert to proper paths with forward slashes
     file_paths = [str(f.absolute()).replace('\\', '/') for f in files if f.exists()]

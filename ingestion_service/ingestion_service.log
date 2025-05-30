@@ -104,3 +104,229 @@
 2025-05-30 02:16:03,272 - main - INFO - Shutting down ingestion service
 2025-05-30 02:16:03,272 - processors.ingestion_service - INFO - Cleaning up ingestion service resources
 2025-05-30 02:16:03,464 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-05-30 02:24:42,220 - __main__ - INFO - Starting Ingestion Service on 0.0.0.0:8000
+2025-05-30 02:24:42,220 - __main__ - INFO - Batch API enabled: false
+2025-05-30 02:24:42,220 - __main__ - INFO - Auto-process batches: false
+2025-05-30 02:24:42,265 - main - INFO - Starting Ingestion Service...
+2025-05-30 02:24:42,265 - main - INFO - Environment variables loaded from .env file
+2025-05-30 02:24:42,265 - config - INFO - Cache directory created/verified: ingestion_cache
+2025-05-30 02:24:42,265 - config - INFO - Configuration validated successfully
+2025-05-30 02:24:42,265 - config - INFO - Configuration loaded successfully from environment
+2025-05-30 02:24:42,632 - processors.ingestion_service - INFO - Supabase client initialized successfully
+2025-05-30 02:24:42,930 - processors.ingestion_service - INFO - OpenAI client initialized successfully
+2025-05-30 02:24:42,930 - processors.ingestion_service - INFO - LlamaIndex settings configured successfully
+2025-05-30 02:24:43,115 - processors.context_aware_chunker - INFO - Context-aware chunker initialized
+2025-05-30 02:25:09,158 - easyocr.easyocr - WARNING - Neither CUDA nor MPS are available - defaulting to CPU. Note: This module is much faster with a GPU.
+2025-05-30 02:25:11,454 - processors.multimodal_processor - INFO - OCR model initialized
+2025-05-30 02:25:12,502 - processors.multimodal_processor - INFO - Whisper model initialized
+2025-05-30 02:25:12,502 - processors.multimodal_processor - INFO - Extended multi-modal processor initialized with 94 file type handlers
+2025-05-30 02:25:12,504 - processors.metadata_extractor - INFO - Metadata extractor initialized
+2025-05-30 02:25:12,504 - processors.ingestion_service - INFO - Processors initialized successfully
+2025-05-30 02:25:12,504 - processors.ingestion_service - INFO - Supabase RAG Ingestion Service initialized successfully
+2025-05-30 02:25:12,504 - main - INFO - Ingestion service initialized successfully
+2025-05-30 02:25:13,122 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&limit=1 "HTTP/2 200 OK"
+2025-05-30 02:25:13,137 - processors.ingestion_service - INFO - Supabase connection test successful
+2025-05-30 02:25:14,036 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:25:14,036 - processors.ingestion_service - INFO - OpenAI connection test successful
+2025-05-30 02:25:14,036 - main - INFO - Database connection verified
+2025-05-30 02:25:14,036 - main - INFO - Starting automatic batch processor
+2025-05-30 02:25:14,036 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:25:14,096 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:25:14,096 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:26:39,028 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:26:39,134 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:26:41,273 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:26:41,323 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:26:43,361 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md
+2025-05-30 02:26:43,459 - processors.context_aware_chunker - ERROR - Error applying hierarchical chunking strategy: Metadata length (142) is longer than chunk size (128). Consider increasing the chunk size or decreasing the size of your metadata to avoid this.
+2025-05-30 02:26:43,489 - processors.ingestion_service - INFO - Storing 33 chunks for document 68f6daf4-3b8c-46bf-ada2-e271266ccf29
+2025-05-30 02:26:43,489 - processors.ingestion_service - INFO - Using regular API for 33 chunks (immediate processing)
+2025-05-30 02:26:44,010 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:26:44,755 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:26:45,199 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:26:45,745 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:26:46,073 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:26:46,395 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:26:46,676 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:26:46,958 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:26:46,990 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md: 33 documents, 33 chunks
+2025-05-30 02:26:46,991 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 3.63s
+2025-05-30 02:26:46,991 - main - INFO - Task ingest_files_0 completed successfully in 3.63s
+2025-05-30 02:26:53,563 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:26:53,604 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:26:55,715 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:26:55,772 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:28:53,904 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:28:54,008 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:28:56,086 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:28:56,182 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:28:58,224 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md
+2025-05-30 02:28:58,261 - processors.context_aware_chunker - ERROR - Error applying hierarchical chunking strategy: Metadata length (145) is longer than chunk size (128). Consider increasing the chunk size or decreasing the size of your metadata to avoid this.
+2025-05-30 02:28:58,285 - processors.ingestion_service - INFO - Storing 33 chunks for document 2aeb4a1b-bda6-4a94-9ece-90fc3f30334e
+2025-05-30 02:28:58,285 - processors.ingestion_service - INFO - Using regular API for 33 chunks (immediate processing)
+2025-05-30 02:28:58,577 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:28:58,976 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:28:59,257 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:28:59,438 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:28:59,713 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:29:00,108 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:29:00,406 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:29:00,565 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:29:00,584 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md: 33 documents, 33 chunks
+2025-05-30 02:29:00,585 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 2.36s
+2025-05-30 02:29:00,585 - main - INFO - Task ingest_files_1 completed successfully in 2.36s
+2025-05-30 02:29:08,522 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:29:08,613 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:29:10,762 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:29:10,848 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:30:14,090 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:30:14,173 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:30:14,173 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:30:24,203 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:30:24,270 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:30:26,380 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:30:26,434 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:30:28,498 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md
+2025-05-30 02:30:28,541 - processors.context_aware_chunker - ERROR - Error applying hierarchical chunking strategy: Metadata length (141) is longer than chunk size (128). Consider increasing the chunk size or decreasing the size of your metadata to avoid this.
+2025-05-30 02:30:28,566 - processors.ingestion_service - INFO - Storing 33 chunks for document 9117bdba-b9dc-4527-acf5-89ee87d241d0
+2025-05-30 02:30:28,566 - processors.ingestion_service - INFO - Using regular API for 33 chunks (immediate processing)
+2025-05-30 02:30:29,404 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:30:29,726 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:30:30,035 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:30:30,230 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:30:30,518 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:30:30,815 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:30:31,321 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:30:31,440 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:30:31,458 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md: 33 documents, 33 chunks
+2025-05-30 02:30:31,459 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 2.96s
+2025-05-30 02:30:31,459 - main - INFO - Task ingest_files_2 completed successfully in 2.96s
+2025-05-30 02:30:38,727 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py
+2025-05-30 02:30:38,727 - processors.context_aware_chunker - ERROR - Error applying code chunking strategy: Could not parse code with language python.
+2025-05-30 02:30:38,739 - processors.ingestion_service - INFO - Storing 2 chunks for document 01ba04cc-972c-4829-98f2-a0db7593627f
+2025-05-30 02:30:38,739 - processors.ingestion_service - INFO - Using regular API for 2 chunks (immediate processing)
+2025-05-30 02:30:38,986 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:30:39,268 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:30:39,268 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py: 2 documents, 2 chunks
+2025-05-30 02:30:39,282 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 0.56s
+2025-05-30 02:30:39,282 - main - INFO - Task ingest_files_3 completed successfully in 0.56s
+2025-05-30 02:30:45,013 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:30:45,066 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:30:47,177 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:30:47,225 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:33:39,115 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:33:39,162 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:33:41,244 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:33:41,280 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:33:43,326 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md
+2025-05-30 02:33:43,365 - processors.context_aware_chunker - ERROR - Error applying hierarchical chunking strategy: Metadata length (142) is longer than chunk size (128). Consider increasing the chunk size or decreasing the size of your metadata to avoid this.
+2025-05-30 02:33:43,386 - processors.ingestion_service - INFO - Storing 33 chunks for document 5d065af7-a177-4b2d-bc94-280184c94c72
+2025-05-30 02:33:43,386 - processors.ingestion_service - INFO - Using regular API for 33 chunks (immediate processing)
+2025-05-30 02:33:43,638 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:33:43,944 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:33:44,329 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:33:44,815 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:33:45,120 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:33:45,435 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:33:45,774 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:33:45,856 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:33:45,856 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md: 33 documents, 33 chunks
+2025-05-30 02:33:45,856 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 2.53s
+2025-05-30 02:33:45,856 - main - INFO - Task ingest_files_4 completed successfully in 2.53s
+2025-05-30 02:33:53,604 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py
+2025-05-30 02:33:53,610 - processors.context_aware_chunker - ERROR - Error applying code chunking strategy: Could not parse code with language python.
+2025-05-30 02:33:53,611 - processors.ingestion_service - INFO - Storing 2 chunks for document ea7e80c1-277d-4610-833f-2a70897da5e2
+2025-05-30 02:33:53,612 - processors.ingestion_service - INFO - Using regular API for 2 chunks (immediate processing)
+2025-05-30 02:33:53,875 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:33:54,182 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:33:54,185 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py: 2 documents, 2 chunks
+2025-05-30 02:33:54,186 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 0.58s
+2025-05-30 02:33:54,186 - main - INFO - Task ingest_files_5 completed successfully in 0.58s
+2025-05-30 02:33:59,788 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:33:59,835 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:34:01,963 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:34:02,024 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:35:14,168 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:35:14,259 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:35:14,259 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:35:29,629 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:35:29,673 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:35:31,784 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:35:31,829 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:35:33,897 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/sample.txt
+2025-05-30 02:35:33,897 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md
+2025-05-30 02:35:33,897 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/cartaconsumo.pdf
+2025-05-30 02:35:33,944 - processors.context_aware_chunker - ERROR - Error applying hierarchical chunking strategy: Metadata length (144) is longer than chunk size (128). Consider increasing the chunk size or decreasing the size of your metadata to avoid this.
+2025-05-30 02:35:33,973 - processors.ingestion_service - INFO - Storing 33 chunks for document d93f4f76-0687-48d1-bfc5-6d509e0c276c
+2025-05-30 02:35:33,973 - processors.ingestion_service - INFO - Using regular API for 33 chunks (immediate processing)
+2025-05-30 02:35:33,977 - processors.ingestion_service - INFO - Storing 1 chunks for document 38a1d0d1-44fe-4102-8339-c2a6cc4db342
+2025-05-30 02:35:33,983 - processors.ingestion_service - INFO - Using regular API for 1 chunks (immediate processing)
+2025-05-30 02:35:34,145 - pypdf._reader - WARNING - incorrect startxref pointer(1)
+2025-05-30 02:35:34,145 - pypdf._reader - WARNING - parsing for Object Streams
+2025-05-30 02:35:34,182 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:34,293 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:34,295 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/sample.txt: 1 documents, 1 chunks
+2025-05-30 02:35:34,298 - processors.ingestion_service - INFO - Storing 3 chunks for document 143d5b62-4021-43d5-9591-8ce48c6e5a83
+2025-05-30 02:35:34,298 - processors.ingestion_service - INFO - Using regular API for 3 chunks (immediate processing)
+2025-05-30 02:35:34,311 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:34,477 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 400 Bad Request"
+2025-05-30 02:35:34,477 - processors.ingestion_service - ERROR - Error generating batch embeddings: Error code: 400 - {'error': {'message': "'$.input' is invalid. Please check the API reference: https://platform.openai.com/docs/api-reference.", 'type': 'invalid_request_error', 'param': None, 'code': None}}
+2025-05-30 02:35:34,477 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 0
+2025-05-30 02:35:34,483 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 1
+2025-05-30 02:35:34,483 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 2
+2025-05-30 02:35:34,483 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/cartaconsumo.pdf: 3 documents, 3 chunks
+2025-05-30 02:35:34,880 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:35,168 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:35,640 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:36,188 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:36,652 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:36,919 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:37,002 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:37,026 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/readme.md: 33 documents, 33 chunks
+2025-05-30 02:35:37,026 - processors.ingestion_service - INFO - Batch processing completed: 3 processed, 0 failed, 3.13s
+2025-05-30 02:35:37,026 - main - INFO - Task ingest_files_6 completed successfully in 3.13s
+2025-05-30 02:35:44,122 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py
+2025-05-30 02:35:44,127 - processors.context_aware_chunker - ERROR - Error applying code chunking strategy: Could not parse code with language python.
+2025-05-30 02:35:44,129 - processors.ingestion_service - INFO - Storing 2 chunks for document c6092def-ea14-4302-8107-61dac54d8ca0
+2025-05-30 02:35:44,129 - processors.ingestion_service - INFO - Using regular API for 2 chunks (immediate processing)
+2025-05-30 02:35:44,386 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 200 OK"
+2025-05-30 02:35:44,502 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?columns=%22content_hash%22%2C%22total_chunks%22%2C%22content%22%2C%22embedding%22%2C%22char_count%22%2C%22questions_answered%22%2C%22extraction_method%22%2C%22next_chunk_preview%22%2C%22processed_at%22%2C%22file_type%22%2C%22parent_node_id%22%2C%22document_id%22%2C%22chunk_type%22%2C%22chunk_index%22%2C%22word_count%22%2C%22title%22%2C%22file_modified%22%2C%22entities%22%2C%22previous_chunk_preview%22%2C%22file_name%22%2C%22file_path%22%2C%22chunk_id%22%2C%22summary%22%2C%22keywords%22%2C%22file_size%22 "HTTP/2 201 Created"
+2025-05-30 02:35:44,518 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/example.py: 2 documents, 2 chunks
+2025-05-30 02:35:44,518 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 0.40s
+2025-05-30 02:35:44,518 - main - INFO - Task ingest_files_7 completed successfully in 0.40s
+2025-05-30 02:35:50,359 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:35:50,415 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:35:52,489 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:35:52,533 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:38:52,706 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:38:52,762 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:38:54,879 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:38:54,919 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:38:56,999 - processors.ingestion_service - INFO - Processing file: C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/cartaconsumo.pdf
+2025-05-30 02:38:57,003 - pypdf._reader - WARNING - incorrect startxref pointer(1)
+2025-05-30 02:38:57,003 - pypdf._reader - WARNING - parsing for Object Streams
+2025-05-30 02:38:57,064 - processors.ingestion_service - INFO - Storing 3 chunks for document 28553a80-09f3-41d5-93b1-1de5ee535564
+2025-05-30 02:38:57,065 - processors.ingestion_service - INFO - Using regular API for 3 chunks (immediate processing)
+2025-05-30 02:38:57,404 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/embeddings "HTTP/1.1 400 Bad Request"
+2025-05-30 02:38:57,404 - processors.ingestion_service - ERROR - Error generating batch embeddings: Error code: 400 - {'error': {'message': "'$.input' is invalid. Please check the API reference: https://platform.openai.com/docs/api-reference.", 'type': 'invalid_request_error', 'param': None, 'code': None}}
+2025-05-30 02:38:57,404 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 0
+2025-05-30 02:38:57,404 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 1
+2025-05-30 02:38:57,404 - processors.ingestion_service - WARNING - Failed to generate embedding for chunk 2
+2025-05-30 02:38:57,404 - processors.ingestion_service - INFO - Successfully processed C:/Users/eloyfernandez/Documents/Eloy/repos/Agentic RAG/advanced_rag/ingestion_service/testing-examples/test_documents/cartaconsumo.pdf: 3 documents, 3 chunks
+2025-05-30 02:38:57,404 - processors.ingestion_service - INFO - Batch processing completed: 1 processed, 0 failed, 0.41s
+2025-05-30 02:38:57,404 - main - INFO - Task ingest_files_8 completed successfully in 0.41s
+2025-05-30 02:39:03,273 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status%2Cchunk_count "HTTP/2 200 OK"
+2025-05-30 02:39:03,358 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rag_documents?select=count&embedding_status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:39:05,454 - httpx - INFO - HTTP Request: POST https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/rpc/get_document_stats "HTTP/2 200 OK"
+2025-05-30 02:39:05,501 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=status "HTTP/2 200 OK"
+2025-05-30 02:40:14,272 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:40:14,422 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:40:14,423 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:45:14,429 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:45:14,715 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:45:14,715 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:50:14,724 - main - INFO - Running scheduled batch processing check
+2025-05-30 02:50:15,055 - httpx - INFO - HTTP Request: GET https://dcgbnntxayqoqxoojdzj.supabase.co/rest/v1/embedding_batch_jobs?select=%2A&status=eq.pending "HTTP/2 200 OK"
+2025-05-30 02:50:15,055 - main - INFO - Batch processing result: {'pending': 0, 'processed': 0, 'failed': 0}
+2025-05-30 02:50:20,123 - main - INFO - Shutting down ingestion service
+2025-05-30 02:50:20,124 - processors.ingestion_service - INFO - Cleaning up ingestion service resources
