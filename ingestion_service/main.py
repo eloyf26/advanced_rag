@@ -45,7 +45,7 @@ class IngestFilesRequest(BaseModel):
     batch_size: Optional[int] = Field(None, description="Override batch size for processing")
     
     class Config:
-        schema_extra = {
+        json_schema_extra  = {
             "example": {
                 "file_paths": ["/path/to/document1.pdf", "/path/to/document2.docx"],
                 "batch_size": 50
@@ -58,7 +58,7 @@ class IngestDirectoryRequest(BaseModel):
     file_extensions: Optional[List[str]] = Field(None, description="Filter by file extensions")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "directory_path": "/path/to/documents",
                 "recursive": True,
@@ -73,7 +73,7 @@ class IngestionResponse(BaseModel):
     embedding_method: Optional[str] = Field(None, description="Embedding method to be used")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "task_id": "ingest_123",
                 "status": "started",
@@ -94,7 +94,7 @@ class IngestionStatusResponse(BaseModel):
     error: Optional[str] = Field(None, description="Error message if failed")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "task_id": "ingest_123",
                 "status": "completed",

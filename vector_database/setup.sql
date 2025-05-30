@@ -93,3 +93,28 @@ CREATE TABLE IF NOT EXISTS bm25_stats (
 INSERT INTO bm25_stats (total_documents, average_document_length, term_frequencies, document_frequencies)
 VALUES (0, 0, '{}', '{}')
 ON CONFLICT DO NOTHING;
+
+-- Table to track batch embedding jobs
+CREATE TABLE IF NOT EXISTS embedding_batch_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    batch_id TEXT NOT NULL UNIQUE,
+    document_id UUID,
+    status TEXT NOT NULL DEFAULT 'pending',
+    chunk_count INTEGER NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    error TEXT,
+    metadata JSONB
+);
+
+-- Index for finding pending jobs
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_status ON embedding_batch_jobs(status);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_document ON embedding_batch_jobs(document_id);
+
+-- Add a column to track chunks waiting for embeddings
+ALTER TABLE rag_documents 
+ADD COLUMN IF NOT EXISTS embedding_status TEXT DEFAULT 'complete';
+
+-- Index for finding chunks without embeddings
+CREATE INDEX IF NOT EXISTS idx_documents_embedding_status ON rag_documents(embedding_status)
+WHERE embedding_status != 'complete';

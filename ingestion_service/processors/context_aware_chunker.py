@@ -7,7 +7,7 @@ import logging
 from typing import List, Dict, Any, Optional
 from pathlib import Path
 
-from llama_index.core import Document
+from llama_index.core import Document, Settings
 from llama_index.core.node_parser import (
     SentenceSplitter, 
     HierarchicalNodeParser,
@@ -54,7 +54,7 @@ class ContextAwareChunker:
                 self.semantic_splitter = SemanticSplitterNodeParser(
                     buffer_size=1,
                     breakpoint_percentile_threshold=95,
-                    embed_model=None  # Will use default
+                    embed_model=Settings.embed_model  # Will use default
                 )
             except Exception as e:
                 logger.warning(f"Semantic splitter initialization failed: {e}")
